@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # DFA Passport Appointment System — Phase 1
 
 Open index.html directly in a browser, or use VS Code Live Server. No installation, CDN or build step is required. All imagery, fonts and styles load locally.
@@ -37,3 +38,6 @@ Required controls display a reminder when left blank or when a user tries to con
 - [Other task flows](pages/other/)
 
 Flow-specific pages and scripts are organized under `pages/`.
+=======
+# dfa-hci-project
+>>>>>>> 661d867caa7b1ef8e7cf2eaa493c7fa7db4c4d26
