@@ -1,0 +1,12 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Accessibility / original universal-access pictogram" clip-path="url(#clip0_0_240)">
+<path id="Vector" d="M16 30.3333C23.9161 30.3333 30.3333 23.9161 30.3333 16C30.3333 8.08392 23.9161 1.66667 16 1.66667C8.08392 1.66667 1.66667 8.08392 1.66667 16C1.66667 23.9161 8.08392 30.3333 16 30.3333Z" fill="#1C1C1C" stroke-width="1.41667" stroke="white"/>
+<path id="Vector_2" d="M16 10.3333C17.2887 10.3333 18.3333 9.28866 18.3333 8C18.3333 6.71134 17.2887 5.66667 16 5.66667C14.7113 5.66667 13.6667 6.71134 13.6667 8C13.6667 9.28866 14.7113 10.3333 16 10.3333Z" fill="white"/>
+<path id="Vector_3" d="M6.66667 13H25.3333M16 13.3333V17.6667M16 17.6667V20.3333M16 17.6667L11 26M16 17.6667L21 26" stroke-width="2.47917" stroke-linecap="round" stroke="white"/>
+</g>
+<defs>
+<clipPath id="clip0_0_240">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>

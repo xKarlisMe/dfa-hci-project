@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="112" height="112" viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Original DFA icon / Schedule">
+<g id="Group">
+<path id="Vector" d="M23 27H89C91.2091 27 93 28.7909 93 31V89C93 91.2091 91.2091 93 89 93H23C20.7909 93 19 91.2091 19 89V31C19 28.7909 20.7909 27 23 27Z" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" stroke="#287BEA"/>
+<path id="Vector_2" d="M19 45H93M39 19V39M73 19V39" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" stroke="#287BEA"/>
+<path id="Vector_3" d="M37 59H49V69H37V59ZM59 59H71V69H59V59ZM37 77H49V87H37V77Z" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" stroke="#287BEA"/>
+</g>
+<path id="Vector_4" d="M86 108C98.1503 108 108 98.1503 108 86C108 73.8497 98.1503 64 86 64C73.8497 64 64 73.8497 64 86C64 98.1503 73.8497 108 86 108Z" fill="white" stroke-width="2.8" stroke="#287BEA"/>
+<path id="Vector_5" d="M86 70V86L98 92" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" stroke="#287BEA"/>
+</g>
+</svg>

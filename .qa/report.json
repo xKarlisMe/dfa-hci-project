@@ -1,0 +1,302 @@
+{
+  "screens": 34,
+  "viewports": [
+    1440,
+    1280,
+    768,
+    390,
+    320
+  ],
+  "overflow": [],
+  "screenshots": [
+    ".qa/index-final.png",
+    ".qa/advisories-final.png",
+    ".qa/applicant-family-final.png",
+    ".qa/application-contact-final.png",
+    ".qa/appointment-details-final.png",
+    ".qa/appointment-schedule-final.png",
+    ".qa/book-appointment-final.png",
+    ".qa/cancel-appointment-final.png",
+    ".qa/cancel-group-final.png",
+    ".qa/cancellation-result-final.png",
+    ".qa/confirmation-final.png",
+    ".qa/final-consent-final.png",
+    ".qa/group-application-final.png",
+    ".qa/group-appointment-details-final.png",
+    ".qa/group-confirmation-final.png",
+    ".qa/group-consent-final.png",
+    ".qa/group-contact-person-final.png",
+    ".qa/group-contact-final.png",
+    ".qa/group-date-final.png",
+    ".qa/group-family-final.png",
+    ".qa/group-payment-bank-final.png",
+    ".qa/group-payment-qr-final.png",
+    ".qa/group-payment-wallet-final.png",
+    ".qa/group-personal-final.png",
+    ".qa/group-review-final.png",
+    ".qa/group-site-final.png",
+    ".qa/individual-intro-final.png",
+    ".qa/payment-bank-final.png",
+    ".qa/payment-qr-final.png",
+    ".qa/payment-wallet-final.png",
+    ".qa/requirements-final.png",
+    ".qa/review-payment-final.png",
+    ".qa/terms-privacy-final.png",
+    ".qa/view-appointment-final.png"
+  ],
+  "fonts": {
+    "index.html": [
+      {
+        "familyName": "Roboto",
+        "postScriptName": "Roboto-Bold",
+        "isCustomFont": true,
+        "glyphCount": 27
+      }
+    ],
+    "pages/book-appointment.html": [
+      {
+        "familyName": "Inter",
+        "postScriptName": "Inter-28pt-Bold",
+        "isCustomFont": true,
+        "glyphCount": 31
+      }
+    ]
+  },
+  "keyboard": [
+    {
+      "terms_checkbox_after_space": [
+        [
+          {
+            "name": "invalid",
+            "value": {
+              "type": "token",
+              "value": "false"
+            }
+          },
+          {
+            "name": "focusable",
+            "value": {
+              "type": "booleanOrUndefined",
+              "value": true
+            }
+          },
+          {
+            "name": "focused",
+            "value": {
+              "type": "booleanOrUndefined",
+              "value": true
+            }
+          },
+          {
+            "name": "checked",
+            "value": {
+              "type": "tristate",
+              "value": "true"
+            }
+          },
+          {
+            "name": "labelledby",
+            "value": {
+              "type": "nodeList",
+              "relatedNodes": [
+                {
+                  "backendDOMNodeId": 45883,
+                  "text": "I have read and agree to the Terms and Conditions and Privacy Policy."
+                }
+              ]
+            }
+          }
+        ]
+      ]
+    },
+    {
+      "calendar_open_after_enter": [
+        "class",
+        "calendar-picker",
+        "open",
+        ""
+      ]
+    },
+    {
+      "family_edit_destination": "file:///E:/DFA/pages/applicant-family.html",
+      "fragment": "#family"
+    }
+  ],
+  "final_focused_checks": [
+    {
+      "file": "individual-intro",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "file": "individual-intro",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "file": "individual-intro",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "file": "individual-intro",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "file": "individual-intro",
+      "width": 320,
+      "overflow": false
+    },
+    {
+      "file": "final-consent",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "file": "final-consent",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "file": "final-consent",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "file": "final-consent",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "file": "final-consent",
+      "width": 320,
+      "overflow": false
+    },
+    {
+      "file": "confirmation",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "file": "confirmation",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "file": "confirmation",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "file": "confirmation",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "file": "confirmation",
+      "width": 320,
+      "overflow": false
+    },
+    {
+      "file": "group-confirmation",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "file": "group-confirmation",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "file": "group-confirmation",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "file": "group-confirmation",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "file": "group-confirmation",
+      "width": 320,
+      "overflow": false
+    },
+    {
+      "file": "review-payment",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "file": "review-payment",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "file": "review-payment",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "file": "review-payment",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "file": "review-payment",
+      "width": 320,
+      "overflow": false
+    },
+    {
+      "file": "appointment-schedule",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "file": "appointment-schedule",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "file": "appointment-schedule",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "file": "appointment-schedule",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "file": "appointment-schedule",
+      "width": 320,
+      "overflow": false
+    },
+    {
+      "file": "group-date",
+      "width": 1440,
+      "overflow": false
+    },
+    {
+      "file": "group-date",
+      "width": 1280,
+      "overflow": false
+    },
+    {
+      "file": "group-date",
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "file": "group-date",
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "file": "group-date",
+      "width": 320,
+      "overflow": false
+    }
+  ]
+}
