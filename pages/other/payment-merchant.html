@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Merchant checkout | DFA Passport Appointment System</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <script defer src="../scripts/common.js"></script>
+</head>
+<body class="merchant merchant-preview">
+  <header class="checkout-header">
+    <div>
+      <p>DEPARTMENT OF FOREIGN AFFAIRS</p>
+      <h2>Passport Appointment System</h2>
+    </div>
+    <span>DEMO MERCHANT CHECKOUT</span>
+  </header>
+  <main class="page" id="main">
+    <div class="intro">
+      <p class="eyebrow">PAYMENT / MERCHANT CHECKOUT</p>
+      <h1 id="merchant-title">Payment checkout</h1>
+      <p id="merchant-description">Review the payment details before continuing.</p>
+    </div>
+    <div class="checkout-grid">
+      <section class="checkout-panel">
+        <h2>Payment details</h2>
+        <div class="amount-row"><span>Payment method</span><strong id="merchant-provider"></strong></div>
+        <div class="amount-row"><span>Appointment</span><strong id="merchant-appointment"></strong></div>
+        <div class="amount-row"><span>Applicants</span><strong id="merchant-applicants"></strong></div>
+        <div class="amount-row"><span>Processing</span><strong id="merchant-processing"></strong></div>
+        <div class="amount-row total"><span>Amount due</span><strong id="merchant-total"></strong></div>
+        <p class="payment-warning"><strong>DEMO CHECKOUT</strong>No real payment is processed. Do not enter account, card, or authentication details.</p>
+        <div class="actions">
+          <a class="btn secondary" id="merchant-back" href="../individual/payment-wallet.html">Back to payment options</a>
+          <button class="btn primary" id="merchant-confirm" type="button">Confirm demo payment</button>
+        </div>
+      </section>
+    </div>
+  </main>
+  <dialog class="payment-reminder-dialog" id="payment-reminder" aria-labelledby="payment-reminder-title" aria-describedby="payment-reminder-copy">
+    <p class="eyebrow">PAYMENT REMINDER</p>
+    <h2 id="payment-reminder-title">Before you continue</h2>
+    <p id="payment-reminder-copy">After the transaction is completed, funds are non-refundable and non-reusable if you choose to cancel your appointment.</p>
+    <div class="actions">
+      <button class="btn secondary" id="payment-reminder-back" type="button">Back to checkout</button>
+      <button class="btn primary" id="payment-reminder-accept" type="button">I understand, continue</button>
+    </div>
+  </dialog>
+</body>
+</html>

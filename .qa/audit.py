@@ -2,8 +2,7 @@
 from pathlib import Path
 sys.path.insert(0,str(Path('.qa').resolve()))
 from browser import Browser
-b=Browser();b.call('Emulation.setScrollbarsHidden',{'hidden':True});root=Path('.').resolve();report={'screens':34,'viewports':[1440,1280,768,390,320],'overflow':[],'screenshots':[],'fonts':{},'keyboard':[]}
-files=sorted(Path('pages').rglob('*.html'))
+b=Browser();b.call('Emulation.setScrollbarsHidden',{'hidden':True});root=Path('.').resolve();files=sorted(Path('pages').rglob('*.html'));report={'screens':len(files),'viewports':[1440,1280,768,390,320],'overflow':[],'screenshots':[],'fonts':{},'keyboard':[]}
 for width in report['viewports']:
  for p in files:
   b.open(p.as_posix(),width,1080);size=b.call('Page.getLayoutMetrics')['cssContentSize']

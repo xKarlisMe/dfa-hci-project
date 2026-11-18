@@ -1,11 +1,11 @@
 (() => {
   const controls = 'input:not([type="hidden"]):not([type="search"]):not([type="submit"]):not([type="button"]), select, textarea';
   const errorClass = 'field-error';
+  const storagePrefix = 'dfa-appointment:';
   const nextPages = {
     'applicant-family.html': 'application-contact.html',
     'application-contact.html': 'review-payment.html',
-    'review-payment.html': 'final-consent.html',
-    'final-consent.html': 'payment-wallet.html',
+    'review-payment.html': 'payment-wallet.html',
     'group-personal.html': 'group-family.html',
     'group-family.html': 'group-application.html',
     'group-application.html': 'group-contact.html',
@@ -29,7 +29,45 @@
     province: ['Metro Manila', 'Abra', 'Agusan del Norte', 'Aklan', 'Albay', 'Batangas', 'Benguet', 'Bulacan', 'Cavite', 'Cebu', 'Davao del Sur', 'Iloilo', 'Laguna', 'Pampanga', 'Rizal', 'Zambales'],
     city: ['Paranaque City', 'Manila City', 'Quezon City', 'Makati City', 'Pasay City', 'Taguig City', 'Mandaluyong City', 'Pasig City', 'Muntinlupa City', 'Caloocan City', 'Cebu City', 'Davao City', 'Baguio City', 'Iloilo City', 'Cagayan de Oro City']
   };
-  choices['field-30'] = choices.office;
+  const officeDetails = {
+    'DFA ASEANA': {
+      address: 'Aseana Business Park, Bradco Avenue, Diosdado Macapagal Boulevard, Parañaque City'
+    },
+    'BAGUIO (SM CITY BAGUIO)': {
+      address: 'SM City Baguio, Upper Basement, Luneta Hill, Upper Session Road corner Gov. Pack Road, Baguio City 2600',
+      phone: '(074) 422-1465'
+    },
+    'CONSULAR OFFICE CENTRAL (ROBINSONS GALLERIA)': {
+      address: 'Lower Ground Floor, Lingkod Pinoy Center, Robinsons Galleria, West Lane, EDSA corner Ortigas Avenue, Quezon City',
+      phone: '(02) 8631-0806',
+      hours: 'Monday to Friday, 8:00 AM to 5:00 PM'
+    },
+    'CONSULAR OFFICE EAST (SM MEGAMALL)': {
+      address: '7th Floor, SM Megamall Building C, EDSA corner Julia Vargas Avenue, Mandaluyong City',
+      phone: '(02) 8234-2478',
+      hours: 'Monday to Friday, 8:00 AM to 5:00 PM'
+    },
+    'CONSULAR OFFICE NORTH (ROBINSONS NOVALICHES)': {
+      address: '3rd Floor, Lingkod Pinoy Center Building B, Robinsons Novaliches, Quirino Highway, Barangay Pasong Putik, Quezon City',
+      phone: '(02) 8372-7902',
+      hours: 'Monday to Friday, 8:00 AM to 5:00 PM'
+    },
+    'CONSULAR OFFICE NORTHEAST (ALI MALL)': {
+      address: 'Level 2, Ali Mall, Araneta City, Cubao, Quezon City',
+      phone: '(02) 8293-0105',
+      hours: 'Monday to Friday, 8:00 AM to 5:00 PM'
+    },
+    'CONSULAR OFFICE SOUTH (FESTIVAL MALL)': {
+      address: '3rd Level, West Wing of Festival Mall, Alabang, Muntinlupa City',
+      phone: '(02) 8551-1051',
+      hours: 'Monday to Friday, 8:00 AM to 5:00 PM'
+    },
+    'CONSULAR OFFICE WEST (SM CITY MANILA)': {
+      address: '5th Floor, SM City Manila, Natividad Almeda Lopez Street corner San Marcelino Street, Ermita, Manila',
+      phone: '(02) 8536-9995',
+      hours: 'Monday to Friday, 8:00 AM to 5:00 PM'
+    }
+  };
 
   function addChoices() {
     Object.entries(choices).forEach(([id, options]) => {
@@ -48,6 +86,477 @@
         });
       });
     });
+  }
+
+  function updateSiteDetails() {
+    const officeSelect = document.querySelector('#office');
+    const section = [...document.querySelectorAll('section.chunk')].find((item) =>
+      item.querySelector(':scope > h3')?.textContent.trim() === 'Site details'
+    );
+    if (!officeSelect || !section) return;
+
+    let panel = section.querySelector('.site-details')
+      || section.querySelector(':scope > .note')
+      || section.querySelector(':scope > p');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.setAttribute('aria-live', 'polite');
+      section.append(panel);
+    }
+    if (panel.tagName !== 'P') section.querySelectorAll(':scope > p').forEach((item) => item.remove());
+    panel.className = 'note site-details';
+    panel.setAttribute('aria-live', 'polite');
+    panel.replaceChildren();
+    const officeName = officeSelect.value;
+    if (!officeName) {
+      const prompt = document.createElement('p');
+      prompt.textContent = 'Select a consular office to view its details.';
+      panel.append(prompt);
+      return;
+    }
+
+    const heading = document.createElement('h4');
+    heading.textContent = officeName;
+    panel.append(heading);
+    const details = officeDetails[officeName];
+    if (!details) {
+      const note = document.createElement('p');
+      note.textContent = 'Check the official directory for current address and contact information.';
+      const directory = document.createElement('a');
+      directory.href = 'https://consular.dfa.gov.ph/directory-co/';
+      directory.target = '_blank';
+      directory.rel = 'noopener noreferrer';
+      directory.textContent = 'DFA Consular Office Directory';
+      panel.append(note, directory);
+      return;
+    }
+
+    const address = document.createElement('p');
+    address.textContent = `Office address: ${details.address}`;
+    panel.append(address);
+    if (details.phone) {
+      const phone = document.createElement('p');
+      phone.textContent = `Contact number: ${details.phone}`;
+      panel.append(phone);
+    }
+    if (details.hours) {
+      const hours = document.createElement('p');
+      hours.textContent = `Office hours: ${details.hours}`;
+      panel.append(hours);
+    }
+  }
+
+  function getPageName() {
+    return location.pathname.split('/').pop();
+  }
+
+  function getStoredValue(page, field) {
+    try {
+      const value = sessionStorage.getItem(`${storagePrefix}${page}:${field}`);
+      return value === null ? null : JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  function storeValue(page, field, value) {
+    try {
+      sessionStorage.setItem(`${storagePrefix}${page}:${field}`, JSON.stringify(value));
+    } catch {
+      return;
+    }
+  }
+
+  function clearAppointmentSession() {
+    try {
+      for (let index = sessionStorage.length - 1; index >= 0; index--) {
+        const key = sessionStorage.key(index);
+        if (key?.startsWith(storagePrefix)) sessionStorage.removeItem(key);
+      }
+    } catch {
+      return;
+    }
+  }
+
+  function saveControl(control) {
+    if (!control.id && !control.name) return;
+    if (control.type === 'radio' && !control.checked) return;
+    const field = control.type === 'radio' ? control.name : control.id || control.name;
+    const value = control.type === 'checkbox' ? control.checked : control.value;
+    storeValue(getPageName(), field, value);
+  }
+
+  function saveVisibleControls() {
+    document.querySelectorAll(controls).forEach(saveControl);
+  }
+
+  function restoreControls() {
+    const page = getPageName();
+    document.querySelectorAll(controls).forEach((control) => {
+      if (page === 'book-appointment.html' && control.id === 'terms') return;
+      if (!control.id && !control.name) return;
+      const field = control.type === 'radio' ? control.name : control.id || control.name;
+      const value = getStoredValue(page, field);
+      if (value === null) return;
+      if (control.type === 'radio') control.checked = control.value === value;
+      else if (control.type === 'checkbox') control.checked = Boolean(value);
+      else if (control.tagName !== 'SELECT' || [...control.options].some((option) => option.value === value)) {
+        control.value = value;
+      }
+    });
+  }
+
+  function updateDatePicker(picker, date) {
+    if (!picker || !date) return;
+    picker.dataset.selectedDate = date;
+    const summary = picker.querySelector('summary');
+    if (summary) {
+      summary.replaceChildren(document.createTextNode(date));
+      summary.classList.add('has-selected-date');
+      summary.setAttribute('aria-label', `Appointment date ${date}`);
+    }
+    const status = picker.parentElement.querySelector('.calendar-status');
+    if (status) {
+      status.textContent = `Selected date: ${date}.`;
+      status.setAttribute('aria-live', 'polite');
+    }
+    const selectedDay = [...picker.querySelectorAll('.day.available')]
+      .find((day) => day.getAttribute('aria-label')?.replace(/, available$/, '') === date);
+    selectedDay?.setAttribute('aria-pressed', 'true');
+    picker.open = false;
+  }
+
+  function restoreDatePicker() {
+    const picker = document.querySelector('.calendar-picker');
+    const date = getStoredValue(getPageName(), 'appointment-date');
+    if (!picker || !date) return;
+    updateDatePicker(picker, date);
+    const next = document.querySelector('.actions button:disabled');
+    if (next?.textContent.includes('Select date first')) {
+      next.disabled = false;
+      next.classList.add('primary');
+      next.textContent = 'Continue';
+    }
+  }
+
+  function makeField(page, id) {
+    return () => getStoredValue(page, id);
+  }
+
+  function makeBirthDate(page, monthId, dayId, yearId) {
+    return () => {
+      const month = getStoredValue(page, monthId);
+      const day = getStoredValue(page, dayId);
+      const year = getStoredValue(page, yearId);
+      return month && day && year ? `${month} ${day}, ${year}` : null;
+    };
+  }
+
+  function updateReviewSection(title, values) {
+    const section = [...document.querySelectorAll('section.chunk')].find((item) =>
+      item.querySelector(':scope > h3')?.textContent.trim().toLowerCase() === title.toLowerCase()
+    );
+    if (!section) return;
+    const fields = new Map(Object.entries(values).map(([label, getter]) => [normalizeLabel(label), getter]));
+    section.querySelectorAll('dt').forEach((term) => {
+      const getter = fields.get(normalizeLabel(term.textContent));
+      const definition = term.nextElementSibling;
+      if (!getter || !definition) return;
+      const value = getter();
+      if (value !== null && value !== undefined) definition.textContent = String(value).trim() || 'Not provided';
+    });
+  }
+
+  function updateReviewDetail(section, label, value) {
+    if (!section) return;
+    const list = section.querySelector('dl');
+    if (!list) return;
+    const existing = [...list.querySelectorAll('dt')].find((term) =>
+      normalizeLabel(term.textContent) === normalizeLabel(label)
+    );
+    if (existing?.nextElementSibling) {
+      existing.nextElementSibling.textContent = value || 'Not provided';
+      return;
+    }
+    const row = document.createElement('div');
+    const term = document.createElement('dt');
+    const detail = document.createElement('dd');
+    term.textContent = label;
+    detail.textContent = value || 'Not provided';
+    row.append(term, detail);
+    list.append(row);
+  }
+
+  function normalizeLabel(value) {
+    return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  function formatPeso(amount) {
+    return `₱${amount.toLocaleString('en-US')}`;
+  }
+
+  function updatePaymentSummary() {
+    const summary = document.querySelector('.pay-summary');
+    if (!summary) return null;
+
+    const processing = summary.querySelector('input[name="processing"]:checked')?.value || 'regular';
+    const applicantsText = [...summary.querySelectorAll('.amount-row')]
+      .find((row) => row.querySelector('span')?.textContent.trim() === 'Applicants')
+      ?.querySelector('strong')?.textContent || '1';
+    const applicants = Number.parseInt(applicantsText, 10) || 1;
+    const feeRows = [...summary.querySelectorAll('.fee-lines .amount-row')];
+    const feeRow = feeRows.find((row) => row.querySelector('span')?.textContent.includes('Passport fee'));
+    const convenienceRow = feeRows.find((row) => row.querySelector('span')?.textContent.includes('Convenience fee'));
+    const totalRow = summary.querySelector('.amount-row.total');
+    const feePerApplicant = processing === 'expedited' ? 1200 : 950;
+    const convenienceFee = Number.parseInt(convenienceRow?.querySelector('strong')?.textContent.replace(/\D/g, ''), 10) || 0;
+    const total = feePerApplicant * applicants + convenienceFee;
+
+    if (feeRow) feeRow.querySelector('strong').textContent = formatPeso(feePerApplicant);
+    if (totalRow) totalRow.querySelector('strong').textContent = formatPeso(total);
+    const selectedLabel = summary.querySelector('.selected-processing strong');
+    if (selectedLabel) selectedLabel.textContent = `${processing === 'expedited' ? 'Expedited' : 'Regular'} processing`;
+    storeValue('payment', 'processing', processing);
+    storeValue('payment', 'applicants', applicants);
+    storeValue('payment', 'total', total);
+    return { processing, applicants, feePerApplicant, convenienceFee, total };
+  }
+
+  function updatePaymentProvider() {
+    const providers = document.querySelector('.providers');
+    const selected = providers?.querySelector('input[name="provider"]:checked');
+    if (!selected) return;
+    const caption = [...providers.parentElement.querySelectorAll('.caption')]
+      .find((item) => item.textContent.trim().startsWith('SELECTED '));
+    if (caption?.nextElementSibling) caption.nextElementSibling.textContent = selected.value;
+    storeValue('payment', 'provider', selected.value);
+  }
+
+  function initializePayment() {
+    if (!document.querySelector('.pay-summary')) return;
+    const savedProcessing = getStoredValue('payment', 'processing');
+    if (savedProcessing) {
+      const option = document.querySelector(`.pay-summary input[name="processing"][value="${CSS.escape(savedProcessing)}"]`);
+      if (option) option.checked = true;
+    }
+    const savedProvider = getStoredValue('payment', 'provider');
+    if (savedProvider) {
+      const option = document.querySelector(`.providers input[name="provider"][value="${CSS.escape(savedProvider)}"]`);
+      if (option) option.checked = true;
+    }
+    updatePaymentProvider();
+    updatePaymentSummary();
+  }
+
+  function startMerchantCheckout() {
+    const totals = updatePaymentSummary();
+    if (!totals) return;
+    const folder = location.pathname.split('/').slice(-2, -1)[0];
+    const file = getPageName();
+    const channel = file.includes('-bank') ? 'Online banking' : file.includes('-qr') ? 'QR payment' : 'E-wallet';
+    const provider = document.querySelector('.providers input[name="provider"]:checked')?.value || 'QR Ph';
+    storeValue('payment', 'mode', folder === 'group' ? 'group' : 'individual');
+    storeValue('payment', 'channel', channel);
+    storeValue('payment', 'provider', provider);
+    storeValue('payment', 'return-url', `../${folder}/${file}`);
+    storeValue('payment', 'confirmation-url', folder === 'group'
+      ? '../group/group-confirmation.html'
+      : '../individual/confirmation.html');
+    window.location.href = '../other/payment-merchant.html';
+  }
+
+  function initializeMerchantPreview() {
+    if (!document.body.classList.contains('merchant-preview')) return;
+    const mode = getStoredValue('payment', 'mode') || 'individual';
+    const provider = getStoredValue('payment', 'provider') || 'QR Ph';
+    const channel = getStoredValue('payment', 'channel') || 'QR payment';
+    const processing = getStoredValue('payment', 'processing') || 'regular';
+    const applicants = getStoredValue('payment', 'applicants') || 1;
+    const total = getStoredValue('payment', 'total') || 1000;
+    const methodName = channel === 'QR payment' ? 'QR' : channel.toLowerCase();
+    document.querySelector('#merchant-title').textContent = `${provider} checkout`;
+    document.querySelector('#merchant-description').textContent = `Review the ${methodName} payment details before continuing.`;
+    document.querySelector('#merchant-provider').textContent = `${provider} · ${channel}`;
+    document.querySelector('#merchant-appointment').textContent = mode === 'group' ? 'Group appointment' : 'Individual appointment';
+    document.querySelector('#merchant-applicants').textContent = `${applicants} applicant${applicants === 1 ? '' : 's'}`;
+    document.querySelector('#merchant-processing').textContent = `${processing === 'expedited' ? 'Expedited' : 'Regular'} processing`;
+    document.querySelector('#merchant-total').textContent = formatPeso(total);
+    document.querySelector('#merchant-back').href = getStoredValue('payment', 'return-url') || '../individual/payment-wallet.html';
+  }
+
+  function configureLookupCode() {
+    const control = document.querySelector('#appointment-code');
+    if (!control) return;
+    control.pattern = 'DFA-(IND|GRP)-[0-9]{4}-[0-9]{6}';
+    control.maxLength = 19;
+    control.placeholder = 'DFA-IND-2026-000001';
+    control.title = 'Enter the appointment code shown on your confirmation.';
+    control.autocomplete = 'off';
+    control.dataset.characterRule = 'appointment-code';
+  }
+
+  function showLookupAlert(message) {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'payment-reminder-dialog';
+    dialog.setAttribute('aria-labelledby', 'lookup-alert-title');
+    dialog.setAttribute('aria-describedby', 'lookup-alert-copy');
+    const eyebrow = document.createElement('p');
+    eyebrow.className = 'eyebrow';
+    eyebrow.textContent = 'APPOINTMENT LOOKUP';
+    const title = document.createElement('h2');
+    title.id = 'lookup-alert-title';
+    title.textContent = 'Appointment not found';
+    const copy = document.createElement('p');
+    copy.id = 'lookup-alert-copy';
+    copy.setAttribute('role', 'alert');
+    copy.textContent = message;
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    actions.style.gridTemplateColumns = '1fr';
+    const close = document.createElement('button');
+    close.className = 'btn primary';
+    close.type = 'button';
+    close.textContent = 'Close';
+    close.addEventListener('click', () => dialog.close());
+    actions.append(close);
+    dialog.append(eyebrow, title, copy, actions);
+    dialog.addEventListener('close', () => dialog.remove(), { once: true });
+    document.body.append(dialog);
+    dialog.showModal();
+    close.focus();
+  }
+
+  function lookupAppointment() {
+    const code = document.querySelector('#appointment-code').value.trim().toUpperCase();
+    const email = document.querySelector('#lookup-email').value.trim().toLowerCase();
+    const records = {
+      'DFA-IND-2026-000001': { email: 'alex.reyes@example.com', url: 'appointment-details.html' },
+      'DFA-GRP-2026-000001': { email: 'alex.reyes@example.com', url: '../group/group-appointment-details.html' }
+    };
+    const record = records[code];
+    if (!record || record.email !== email) {
+      showLookupAlert('We could not find an appointment matching that code and registered email. Check both details and try again.');
+      return;
+    }
+    storeValue('lookup', 'appointment-code', code);
+    storeValue('lookup', 'email', email);
+    window.location.href = record.url;
+  }
+
+  function updateAppointmentDetails() {
+    if (getPageName() !== 'appointment-details.html' && getPageName() !== 'group-appointment-details.html') return;
+    const code = getStoredValue('lookup', 'appointment-code');
+    const email = getStoredValue('lookup', 'email');
+    document.querySelectorAll('dt').forEach((term) => {
+      const label = normalizeLabel(term.textContent);
+      const detail = term.nextElementSibling;
+      if (!detail) return;
+      if (code && (label === 'appointmentcode' || label === 'groupappointmentcode')) detail.textContent = code;
+      if (email && label === 'registeredemail') detail.textContent = email;
+    });
+  }
+
+  function finishMerchantPreview() {
+    storeValue('payment', 'status', 'demo-paid');
+    window.location.href = getStoredValue('payment', 'confirmation-url') || '../individual/confirmation.html';
+  }
+
+  function updateReview() {
+    const page = getPageName();
+    const isGroup = page === 'group-review.html';
+    if (page !== 'review-payment.html' && !isGroup) return;
+
+    const schedulePage = isGroup ? 'group-site.html' : 'appointment-schedule.html';
+    const datePage = isGroup ? 'group-site.html' : 'appointment-schedule.html';
+    const personalPage = isGroup ? 'group-personal.html' : 'applicant-family.html';
+    const familyPage = isGroup ? 'group-family.html' : 'applicant-family.html';
+    const applicationPage = isGroup ? 'group-application.html' : 'application-contact.html';
+    const contactPage = isGroup ? 'group-contact.html' : 'application-contact.html';
+    const field = makeField;
+
+    const scheduleValues = {
+      REGION: field(schedulePage, 'region'),
+      COUNTRY: field(schedulePage, 'country'),
+      'DFA CONSULAR OFFICE': field(schedulePage, 'office'),
+      'CONSULAR OFFICE': field(schedulePage, 'office'),
+      'APPOINTMENT DATE': () => getStoredValue(datePage, 'appointment-date')
+    };
+    updateReviewSection('Appointment schedule', scheduleValues);
+
+    if (isGroup) {
+      updateReviewSection('Group booking overview', {
+        'APPOINTMENT DATE': () => getStoredValue(datePage, 'appointment-date'),
+        'GROUP APPOINTMENT TIME': () => null,
+        'CONSULAR OFFICE': field(schedulePage, 'office')
+      });
+    }
+
+    updateReviewSection('Personal information', {
+      'FIRST NAME': field(personalPage, 'given-name'),
+      'MIDDLE NAME': field(personalPage, 'middle-name'),
+      'LAST NAME': field(personalPage, 'last-name'),
+      'DATE OF BIRTH': makeBirthDate(personalPage, 'dob-month', 'dob-day', 'dob-year'),
+      SEX: field(personalPage, 'sex'),
+      'CIVIL STATUS': field(personalPage, 'civil-status'),
+      'MOBILE NUMBER': field(personalPage, 'mobile'),
+      'EMAIL ADDRESS': field(personalPage, 'email')
+    });
+
+    updateReviewSection('Family information', {
+      'FATHER’S GIVEN NAME': field(familyPage, isGroup ? 'field-43' : 'field-12'),
+      'FATHER’S MIDDLE NAME': field(familyPage, isGroup ? 'field-44' : 'field-13'),
+      'FATHER’S LAST NAME': field(familyPage, isGroup ? 'field-42' : 'field-11'),
+      'MOTHER’S GIVEN NAME': field(familyPage, isGroup ? 'field-46' : 'field-15'),
+      'MOTHER’S MAIDEN MIDDLE NAME': field(familyPage, isGroup ? 'field-47' : 'field-16'),
+      'MOTHER’S MAIDEN LAST NAME': field(familyPage, isGroup ? 'field-45' : 'field-14')
+    });
+
+    updateReviewSection('Application information', {
+      'APPLICATION TYPE': field(applicationPage, 'application-type'),
+      CITIZENSHIP: field(applicationPage, 'citizenship'),
+      'FOREIGN PASSPORT HOLDER': field(applicationPage, 'foreign-passport'),
+      'EMERGENCY CONTACT': field(applicationPage, 'emergency-name'),
+      'EMERGENCY MOBILE': field(applicationPage, 'emergency-mobile')
+    });
+
+    updateReviewSection('Contact information', {
+      'STREET AND BARANGAY': field(contactPage, 'street'),
+      'CITY / MUNICIPALITY': field(contactPage, 'city'),
+      PROVINCE: field(contactPage, 'province'),
+      'POSTAL CODE': field(contactPage, 'postal-code'),
+      OCCUPATION: field(contactPage, 'occupation'),
+      'OFFICE TELEPHONE': field(contactPage, 'office-phone')
+    });
+
+    if (isGroup) {
+      const applicants = [...document.querySelectorAll('section.chunk')].find((item) =>
+        item.querySelector(':scope > h3')?.textContent.trim() === 'Group applicants'
+      );
+      if (applicants) {
+        const leadGiven = getStoredValue(personalPage, 'given-name');
+        const leadLast = getStoredValue(personalPage, 'last-name');
+        const memberGiven = getStoredValue('group-contact-person.html', 'group-member-2-given')
+          || getStoredValue(personalPage, 'applicant-2-given');
+        const memberLast = getStoredValue('group-contact-person.html', 'group-member-2-last')
+          || getStoredValue(personalPage, 'applicant-2-last');
+        const lead = [leadGiven, leadLast].filter(Boolean).join(' ');
+        const member = [memberGiven, memberLast].filter(Boolean).join(' ');
+        if (lead) applicants.querySelector('h4')?.replaceChildren(`Applicant 1 — ${lead}`);
+        if (member) applicants.querySelector('.applicant-review-row p')?.replaceChildren(member);
+      }
+
+      const groupContact = 'group-contact-person.html';
+      const contactDetails = [...document.querySelectorAll('section.chunk')].find((item) =>
+        item.querySelector(':scope > h3')?.textContent.trim() === 'Contact information'
+      );
+      const contactName = [
+        getStoredValue(groupContact, 'field-70'),
+        getStoredValue(groupContact, 'field-71')
+      ].filter(Boolean).join(' ');
+      updateReviewDetail(contactDetails, 'GROUP CONTACT PERSON', contactName);
+      updateReviewDetail(contactDetails, 'CONTACT MOBILE NUMBER', getStoredValue(groupContact, 'field-72'));
+      updateReviewDetail(contactDetails, 'CONTACT EMAIL ADDRESS', getStoredValue(groupContact, 'field-73'));
+    }
   }
 
   function getGroup(control) {
@@ -98,6 +607,46 @@
     picker.querySelector('summary')?.removeAttribute('aria-invalid');
   }
 
+  function configureInput(control) {
+    if (control.tagName !== 'INPUT' || !['text', 'email', 'tel', 'search'].includes(control.type)) return;
+    const label = [...(control.labels || [])].map((item) => item.textContent).join(' ');
+    const description = `${control.id} ${control.name} ${label}`.toLowerCase();
+    if (control.type === 'email' || /\bemail\b/.test(description)) {
+      control.type = 'email';
+      control.inputMode = 'email';
+      control.title = 'Enter a valid email address.';
+      control.dataset.characterRule = 'email';
+    } else if (control.type === 'tel' || /\b(phone|telephone|mobile|contact number)\b/.test(description)) {
+      control.type = 'tel';
+      control.inputMode = 'numeric';
+      control.pattern = '[0-9]{7,15}';
+      control.title = 'Enter 7 to 15 digits.';
+      control.dataset.characterRule = 'digits';
+    } else if (/\b(name|surname|contact person)\b/.test(description)) {
+      control.inputMode = 'text';
+      control.title = 'Use letters, spaces, apostrophes, periods, and hyphens only.';
+      control.dataset.characterRule = 'name';
+    }
+  }
+
+  function filterInput(control) {
+    const rule = control.dataset.characterRule;
+    if (!['digits', 'name', 'appointment-code'].includes(rule)) return;
+    const original = control.value;
+    const filtered = rule === 'digits'
+      ? original.replace(/\D/g, '').slice(0, 15)
+      : rule === 'name'
+        ? original.replace(/[^\p{L}\p{M} .'-]/gu, '').replace(/\s{2,}/g, ' ')
+        : original.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 19);
+    if (filtered === original) return;
+    const position = control.selectionStart;
+    control.value = filtered;
+    if (position !== null) {
+      const removed = original.length - filtered.length;
+      control.setSelectionRange(Math.max(0, position - removed), Math.max(0, position - removed));
+    }
+  }
+
   function validate(control) {
     const group = getGroup(control);
     const checked = control.type === 'radio' ? group.some((item) => item.checked) : true;
@@ -134,6 +683,7 @@
 
   function prepareControls() {
     document.querySelectorAll(controls).forEach((control) => {
+      configureInput(control);
       control.required = true;
       const label = control.type === 'radio'
         ? control.closest('fieldset')?.querySelector('legend')
@@ -164,6 +714,14 @@
     document.head.append(styles);
     addChoices();
     prepareControls();
+    configureLookupCode();
+    restoreControls();
+    updateSiteDetails();
+    restoreDatePicker();
+    updateReview();
+    updateAppointmentDetails();
+    initializePayment();
+    initializeMerchantPreview();
 
     const lookupAction = document.querySelector('.management button.disabled');
     if (lookupAction) {
@@ -181,11 +739,17 @@
 
     document.addEventListener('input', (event) => {
       const control = event.target;
+      filterInput(control);
+      saveControl(control);
       if (control.matches(`${controls}[required]`) && control.checkValidity()) clearMessage(control);
     });
 
     document.addEventListener('change', (event) => {
       const control = event.target;
+      saveControl(control);
+      if (control.matches('#office')) updateSiteDetails();
+      if (control.name === 'processing') updatePaymentSummary();
+      if (control.name === 'provider') updatePaymentProvider();
       if (control.matches(`${controls}[required]`) && control.checkValidity()) clearMessage(control);
     });
 
@@ -194,12 +758,13 @@
       if (day) {
         const picker = day.closest('.calendar-picker');
         const date = day.getAttribute('aria-label')?.replace(/, available$/, '');
-        picker.dataset.selectedDate = date;
         picker.querySelectorAll('.day[aria-pressed]').forEach((item) => item.removeAttribute('aria-pressed'));
         day.setAttribute('aria-pressed', 'true');
-        const dateLabel = picker.querySelector('summary span:last-child');
-        if (dateLabel) dateLabel.textContent = date;
+        const summary = picker.querySelector('summary');
+        updateDatePicker(picker, date);
+        storeValue(getPageName(), 'appointment-date', date);
         clearCalendarMessage(picker);
+        summary?.focus();
         const next = document.querySelector('.actions button:disabled');
         if (next?.textContent.includes('Select date first')) {
           next.disabled = false;
@@ -207,19 +772,12 @@
           next.textContent = 'Continue';
         }
       }
-      const continueAfterDate = event.target.closest('.actions button.primary');
-      if (continueAfterDate && document.body.classList.contains('group')) {
-        if (!validatePage()) {
-          event.preventDefault();
-          return;
-        }
-        window.location.href = 'group-personal.html';
-      }
     });
 
     document.querySelectorAll('form').forEach((form) => {
       form.noValidate = true;
       form.addEventListener('submit', (event) => {
+        saveVisibleControls();
         if (!validatePage()) {
           event.preventDefault();
           return;
@@ -233,12 +791,46 @@
     });
 
     document.addEventListener('click', (event) => {
+      const startBooking = event.target.closest('.gateway .type-buttons a');
+      if (startBooking) {
+        if (!validatePage()) {
+          event.preventDefault();
+          return;
+        }
+        clearAppointmentSession();
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      const dismissReminder = event.target.closest('#payment-reminder-back');
+      if (dismissReminder) {
+        event.preventDefault();
+        document.querySelector('#payment-reminder')?.close();
+        return;
+      }
       const action = event.target.closest('a.btn.primary, button.btn.primary');
       if (!action) return;
+      if (action.id === 'merchant-confirm') {
+        event.preventDefault();
+        document.querySelector('#payment-reminder')?.showModal();
+        document.querySelector('#payment-reminder-accept')?.focus();
+        return;
+      }
+      if (action.id === 'payment-reminder-accept') {
+        event.preventDefault();
+        document.querySelector('#payment-reminder')?.close();
+        finishMerchantPreview();
+        return;
+      }
+      saveVisibleControls();
       if (!validatePage()) {
         event.preventDefault();
       } else if (action.id === 'lookup-submit') {
-        window.location.href = 'appointment-details.html';
+        event.preventDefault();
+        lookupAppointment();
+      } else if (action.closest('.pay-summary')) {
+        event.preventDefault();
+        startMerchantCheckout();
       }
     });
   }

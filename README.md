@@ -11,7 +11,7 @@ Figma HCI Group Project: Ii4q5GPJ5WO9i1HoOm2RpP. Every HTML screen records its s
 
 ## Screens
 
-Homepage; booking gateway; terms and privacy; individual introduction; appointment location/date; individual applicant/family; individual application/contact; individual review/payment and final consent; group site, date, personal, family, application, residential/work contact, group contact, review and final consent; three merchant states each for individual and group (wallet, bank and QR); individual and group confirmation; appointment lookup; individual and group details; cancellation confirmation for each; cancellation result; requirements; advisories.
+Homepage; booking gateway; terms and privacy; individual appointment schedule; individual applicant/family; individual application/contact; individual review/payment; group appointment schedule with location and date selection; group personal, family, application, residential/work contact, group contact, review and final consent; three merchant states each for individual and group (wallet, bank and QR); individual and group confirmation; appointment lookup; individual and group details; cancellation confirmation for each; cancellation result; requirements; advisories.
 
 The group applicant manager initially shows two applicants, as in Figma. Add/remove behavior, server-side booking, fee calculation, and payment processing are not implemented. The lookup and cancellation screens remain prototype presentations.
 
@@ -26,7 +26,7 @@ The original 34 screens were rendered in installed Chrome. Layout widths checked
 
 Remaining prototype limitations: native select and birthdate option menus vary by browser; the birthdate picker uses native month/day/year controls inside a details disclosure. The calendar exposes the static sample dates only. Cancellation is a standalone static presentation rather than a live overlay. Page 5 breakpoint layouts adapt the current Page 3 content; they do not replace that content with the older wording shown in some breakpoint studies. Advisory article details and requirement-category detail pages are outside the connected booking/management flow and are not implemented.
 
-Required controls display a reminder when left blank or when a user tries to continue. Sample values are shown as placeholders rather than prefilled answers.
+Required controls display a reminder when left blank or when a user tries to continue. Phone fields accept digits only, email fields use browser email validation, and name fields accept letters and common name punctuation. Sample values are shown as placeholders rather than prefilled answers.
 
 ## Open screens
 
