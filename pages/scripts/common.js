@@ -201,7 +201,7 @@
       if (control.type === 'radio') control.checked = control.value === value;
       else if (control.type === 'checkbox') control.checked = Boolean(value);
       else if (control.tagName !== 'SELECT' || [...control.options].some((option) => option.value === value)) {
-        control.value = value;
+        control.value = typeof value === 'string' ? value.toUpperCase() : value;
       }
     });
   }
@@ -426,20 +426,108 @@
     close.focus();
   }
 
+  const appointmentStoreKey = 'dfa-appointment-records:v1';
+
+  function getAppointmentRecords() {
+    try {
+      const records = JSON.parse(localStorage.getItem(appointmentStoreKey) || '[]');
+      return Array.isArray(records) ? records : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveAppointmentRecords(records) {
+    try {
+      localStorage.setItem(appointmentStoreKey, JSON.stringify(records));
+    } catch {
+      return;
+    }
+  }
+
+  function ensureBaselineAppointments() {
+    const records = getAppointmentRecords();
+    const defaults = [
+      {
+        code: 'DFA-IND-2026-000001',
+        email: 'alex.reyes@example.com',
+        mode: 'individual',
+        url: 'appointment-details.html'
+      },
+      {
+        code: 'DFA-GRP-2026-000001',
+        email: 'alex.reyes@example.com',
+        mode: 'group',
+        url: '../group/group-appointment-details.html'
+      }
+    ];
+    let changed = false;
+    defaults.forEach((defaultRecord) => {
+      if (!records.some((record) => record.code === defaultRecord.code)) {
+        records.push(defaultRecord);
+        changed = true;
+      }
+    });
+    if (changed) saveAppointmentRecords(records);
+  }
+
+  function registerSubmittedAppointment() {
+    const mode = getStoredValue('payment', 'mode') || 'individual';
+    const prefix = mode === 'group' ? 'DFA-GRP' : 'DFA-IND';
+    const year = new Date().getFullYear();
+    const records = getAppointmentRecords();
+
+    const page = mode === 'group' ? 'group-personal.html' : 'applicant-family.html';
+    const email = (getStoredValue(page, 'email') || '').trim().toLowerCase();
+    if (!email) return null;
+
+    const existingNumbers = records
+      .filter((record) => record.code?.startsWith(`${prefix}-${year}-`))
+      .map((record) => Number.parseInt(record.code.split('-').pop(), 10))
+      .filter((number) => Number.isFinite(number));
+    const sequence = existingNumbers.length ? Math.max(...existingNumbers) + 1 : 1;
+    const code = `${prefix}-${year}-${String(sequence).padStart(6, '0')}`;
+
+    const officePage = mode === 'group' ? 'group-site.html' : 'appointment-schedule.html';
+    const record = {
+      code,
+      email,
+      mode,
+      url: mode === 'group' ? '../group/group-appointment-details.html' : 'appointment-details.html',
+      office: getStoredValue(officePage, 'office'),
+      date: getStoredValue(officePage, 'appointment-date'),
+      applicant: [
+        getStoredValue(page, 'given-name'),
+        getStoredValue(page, 'last-name')
+      ].filter(Boolean).join(' '),
+      mobile: getStoredValue(page, 'mobile'),
+      applicants: getStoredValue('payment', 'applicants') || (mode === 'group' ? 2 : 1),
+      processing: getStoredValue('payment', 'processing') || 'regular',
+      total: getStoredValue('payment', 'total')
+    };
+
+    records.push(record);
+    saveAppointmentRecords(records);
+    storeValue('payment', 'appointment-code', code);
+    return record;
+  }
+
   function lookupAppointment() {
+    ensureBaselineAppointments();
     const code = document.querySelector('#appointment-code').value.trim().toUpperCase();
     const email = document.querySelector('#lookup-email').value.trim().toLowerCase();
-    const records = {
-      'DFA-IND-2026-000001': { email: 'alex.reyes@example.com', url: 'appointment-details.html' },
-      'DFA-GRP-2026-000001': { email: 'alex.reyes@example.com', url: '../group/group-appointment-details.html' }
-    };
-    const record = records[code];
-    if (!record || record.email !== email) {
+    const record = getAppointmentRecords().find((item) =>
+      item.code?.trim().toUpperCase() === code &&
+      (item.email || '').trim().toLowerCase() === email
+    );
+
+    if (!record) {
       showLookupAlert('We could not find an appointment matching that code and registered email. Check both details and try again.');
       return;
     }
     storeValue('lookup', 'appointment-code', code);
     storeValue('lookup', 'email', email);
+    storeValue('lookup', 'record', record);
     window.location.href = record.url;
   }
 
@@ -447,18 +535,41 @@
     if (getPageName() !== 'appointment-details.html' && getPageName() !== 'group-appointment-details.html') return;
     const code = getStoredValue('lookup', 'appointment-code');
     const email = getStoredValue('lookup', 'email');
+    const record = getStoredValue('lookup', 'record');
     document.querySelectorAll('dt').forEach((term) => {
       const label = normalizeLabel(term.textContent);
       const detail = term.nextElementSibling;
       if (!detail) return;
       if (code && (label === 'appointmentcode' || label === 'groupappointmentcode')) detail.textContent = code;
       if (email && label === 'registeredemail') detail.textContent = email;
+      if (record?.office && label === 'dfaoffice') detail.textContent = record.office;
+      if (record?.date && label === 'appointmentdate') detail.textContent = record.date;
+      if (record?.applicant && (label === 'applicant' || label === 'primaryapplicantadultbooker' || label === 'applicant1bookingrepresentative')) detail.textContent = record.applicant;
+      if (record?.mobile && label === 'contactnumber') detail.textContent = record.mobile;
+      if (record?.processing && label === 'paymentstatus') detail.textContent = `Paid · ${record.processing === 'expedited' ? 'Expedited' : 'Regular'} processing`;
+      if (record?.total && label === 'totalfees' || record?.total && label === 'totalgroupfees') detail.textContent = formatPeso(record.total);
     });
   }
 
   function finishMerchantPreview() {
+    const record = registerSubmittedAppointment();
     storeValue('payment', 'status', 'demo-paid');
-    window.location.href = getStoredValue('payment', 'confirmation-url') || '../individual/confirmation.html';
+
+    const isGroup = getStoredValue('payment', 'mode') === 'group';
+    const confirmationUrl = isGroup
+      ? '../group/group-confirmation.html'
+      : '../individual/confirmation.html';
+    if (record) storeValue('payment', 'appointment-code', record.code);
+    window.location.href = confirmationUrl;
+  }
+
+  function initializeConfirmation() {
+    if (!document.querySelector('body.confirmation-screen')) return;
+    ensureBaselineAppointments();
+    const code = getStoredValue('payment', 'appointment-code');
+    if (!code) return;
+    const codeElement = document.querySelector('.code');
+    if (codeElement) codeElement.textContent = code;
   }
 
   function updateReview() {
@@ -629,15 +740,115 @@
     }
   }
 
+  function confirmBirthdate(disclosure) {
+    const month = disclosure.querySelector('select[name$="-dob-month"], select[id$="dob-month"]');
+    const day = disclosure.querySelector('select[name$="-dob-day"], select[id$="dob-day"]');
+    const year = disclosure.querySelector('select[name$="-dob-year"], select[id$="dob-year"]');
+    if (!month || !day || !year) return;
+
+    if (!month.value || !day.value || !year.value) {
+      const incomplete = !month.value ? month : !day.value ? day : year;
+      incomplete.focus();
+      const fields = disclosure.querySelector('.dob-content');
+      let reminder = fields?.querySelector('.dob-reminder');
+      if (!reminder && fields) {
+        reminder = document.createElement('small');
+        reminder.className = 'dob-reminder field-error';
+        reminder.setAttribute('role', 'alert');
+        fields.append(reminder);
+      }
+      if (reminder) reminder.textContent = 'Please select a month, day, and year.';
+      return;
+    }
+
+    disclosure.querySelector('.dob-reminder')?.remove();
+
+    const isPrimary = disclosure.querySelector('select[id="dob-month"]');
+    if (isPrimary) {
+      const months = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+      const birthYear = Number.parseInt(year.value, 10);
+      const birthMonth = months.indexOf(month.value.toUpperCase());
+      const birthDay = Number.parseInt(day.value, 10);
+      const today = new Date();
+      let age = today.getFullYear() - birthYear;
+      if (today.getMonth() < birthMonth || (today.getMonth() === birthMonth && today.getDate() < birthDay)) age--;
+
+      if (age < 18) {
+        const fields = disclosure.querySelector('.dob-content');
+        let reminder = fields?.querySelector('.dob-reminder');
+        if (!reminder && fields) {
+          reminder = document.createElement('small');
+          reminder.className = 'dob-reminder dob-age-reminder';
+          reminder.setAttribute('role', 'alert');
+          reminder.setAttribute('aria-live', 'assertive');
+          fields.append(reminder);
+        } else {
+          reminder.className = 'dob-reminder dob-age-reminder';
+        }
+        if (reminder) reminder.textContent = 'THE PRIMARY APPLICANT MUST BE AT LEAST 18 YEARS OLD.';
+        disclosure.dataset.primaryUnderage = 'true';
+        disclosure.open = true;
+        return;
+      }
+      disclosure.dataset.primaryUnderage = 'false';
+    }
+
+    const value = `${month.value} ${day.value}, ${year.value}`;
+    const summaryValue = disclosure.querySelector('#dob-value, [id$="-dob-value"]');
+    if (summaryValue) summaryValue.textContent = value;
+    disclosure.dataset.confirmedBirthdate = value;
+    disclosure.open = false;
+
+    disclosure.querySelectorAll('select').forEach((control) => saveControl(control));
+  }
+
+  function initializeBirthdates() {
+    document.querySelectorAll('details.dob').forEach((disclosure) => {
+      if (disclosure.querySelector('.dob-confirm')) return;
+      const content = disclosure.querySelector('.dob-content');
+      if (!content) return;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn primary dob-confirm';
+      button.textContent = 'Confirm';
+      button.addEventListener('click', () => confirmBirthdate(disclosure));
+      content.append(button);
+
+      disclosure.querySelectorAll('select').forEach((control) => {
+        control.addEventListener('change', () => {
+          disclosure.querySelector('.dob-reminder')?.remove();
+          saveControl(control);
+        });
+      });
+
+      const month = disclosure.querySelector('select[id$="dob-month"]');
+      const day = disclosure.querySelector('select[id$="dob-day"]');
+      const year = disclosure.querySelector('select[id$="dob-year"]');
+      if (month?.value && day?.value && year?.value) {
+        disclosure.dataset.confirmedBirthdate = `${month.value} ${day.value}, ${year.value}`;
+        const summaryValue = disclosure.querySelector('#dob-value, [id$="-dob-value"]');
+        if (summaryValue) summaryValue.textContent = disclosure.dataset.confirmedBirthdate;
+      }
+    });
+  }
+
   function filterInput(control) {
-    const rule = control.dataset.characterRule;
-    if (!['digits', 'name', 'appointment-code'].includes(rule)) return;
     const original = control.value;
-    const filtered = rule === 'digits'
-      ? original.replace(/\D/g, '').slice(0, 15)
-      : rule === 'name'
-        ? original.replace(/[^\p{L}\p{M} .'-]/gu, '').replace(/\s{2,}/g, ' ')
-        : original.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 19);
+    let filtered = original;
+    const rule = control.dataset.characterRule;
+
+    if ((control.tagName === 'INPUT' && ['text', 'email', 'tel', 'search'].includes(control.type)) || control.tagName === 'TEXTAREA') {
+      filtered = filtered.toUpperCase();
+    }
+
+    if (rule === 'digits') {
+      filtered = filtered.replace(/\D/g, '').slice(0, 15);
+    } else if (rule === 'name') {
+      filtered = filtered.replace(/[^\p{L}\p{M} .'-]/gu, '').replace(/\s{2,}/g, ' ');
+    } else if (rule === 'appointment-code') {
+      filtered = filtered.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 19);
+    }
+
     if (filtered === original) return;
     const position = control.selectionStart;
     control.value = filtered;
@@ -663,6 +874,14 @@
   }
 
   function validatePage() {
+    const primaryBirthdate = document.querySelector('details.dob select[id="dob-month"]')?.closest('details.dob');
+    if (primaryBirthdate?.dataset.primaryUnderage === 'true') {
+      primaryBirthdate.open = true;
+      primaryBirthdate.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      primaryBirthdate.querySelector('select[id$="dob-month"]')?.focus();
+      return false;
+    }
+
     const fields = [...document.querySelectorAll(`${controls}[required]`)];
     let firstInvalid;
     fields.forEach((control) => {
@@ -710,16 +929,19 @@
 
   function init() {
     const styles = document.createElement('style');
-    styles.textContent = '.field-error{display:block;color:#9a3412;font-size:13px;line-height:20px;margin-top:4px}.required-marker{color:#9a3412}.field [aria-invalid="true"],.check [aria-invalid="true"]{outline:2px solid #9a3412;outline-offset:2px}';
+    styles.textContent = 'input[type="text"],input[type="email"],input[type="tel"],input[type="search"],textarea{text-transform:uppercase}.field-error{display:block;color:#9a3412;font-size:13px;line-height:20px;margin-top:4px}.required-marker{color:#9a3412}.field [aria-invalid="true"],.check [aria-invalid="true"]{outline:2px solid #9a3412;outline-offset:2px}';
     document.head.append(styles);
     addChoices();
     prepareControls();
     configureLookupCode();
+    ensureBaselineAppointments();
     restoreControls();
+    initializeBirthdates();
     updateSiteDetails();
     restoreDatePicker();
     updateReview();
     updateAppointmentDetails();
+    initializeConfirmation();
     initializePayment();
     initializeMerchantPreview();
 
