@@ -799,7 +799,10 @@
     disclosure.dataset.confirmedBirthdate = value;
     disclosure.open = false;
 
-    disclosure.querySelectorAll('select').forEach((control) => saveControl(control));
+    disclosure.querySelectorAll('select').forEach((control) => {
+      clearMessage(control);
+      saveControl(control);
+    });
   }
 
   function initializeBirthdates() {
@@ -809,7 +812,7 @@
       if (!content) return;
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'btn primary dob-confirm';
+      button.className = 'btn secondary dob-confirm';
       button.textContent = 'Confirm';
       button.addEventListener('click', () => confirmBirthdate(disclosure));
       content.append(button);
@@ -858,13 +861,17 @@
     }
   }
 
-  function validate(control) {
+  function validate(control, showRequiredState = false) {
     const group = getGroup(control);
     const checked = control.type === 'radio' ? group.some((item) => item.checked) : true;
     const valid = checked && control.checkValidity();
     if (valid) {
       clearMessage(control);
       return true;
+    }
+    if (!showRequiredState) {
+      clearMessage(control);
+      return false;
     }
     const message = control.validity.valueMissing || !checked
       ? 'Please complete this field before continuing.'
@@ -885,7 +892,7 @@
     const fields = [...document.querySelectorAll(`${controls}[required]`)];
     let firstInvalid;
     fields.forEach((control) => {
-      if (!validate(control) && !firstInvalid) firstInvalid = control;
+      if (!validate(control, true) && !firstInvalid) firstInvalid = control;
     });
     const picker = document.querySelector('.calendar-picker');
     if (picker && !picker.dataset.selectedDate) {
@@ -929,7 +936,7 @@
 
   function init() {
     const styles = document.createElement('style');
-    styles.textContent = 'input[type="text"],input[type="email"],input[type="tel"],input[type="search"],textarea{text-transform:uppercase}.field-error{display:block;color:#9a3412;font-size:13px;line-height:20px;margin-top:4px}.required-marker{color:#9a3412}.field [aria-invalid="true"],.check [aria-invalid="true"]{outline:2px solid #9a3412;outline-offset:2px}';
+    styles.textContent = 'input[type="text"],input[type="email"],input[type="tel"],input[type="search"],textarea{text-transform:uppercase}.field-error{display:block;color:#9a3412;font-size:13px;line-height:20px;margin-top:4px}.required-marker{color:#9a3412}.field [aria-invalid="true"],.check [aria-invalid="true"]{outline:2px solid #be2338;outline-offset:2px;border:2px solid #be2338!important}.field [aria-invalid="true"]:focus-visible,.check [aria-invalid="true"]:focus-visible{outline:3px solid #266fab;outline-offset:3px;border:2px solid #be2338!important}';
     document.head.append(styles);
     addChoices();
     prepareControls();
@@ -956,7 +963,7 @@
 
     document.addEventListener('focusout', (event) => {
       const control = event.target;
-      if (control.matches(`${controls}[required]`)) validate(control);
+      if (control.matches(`${controls}[required]`) && control.checkValidity()) clearMessage(control);
     });
 
     document.addEventListener('input', (event) => {
@@ -1024,6 +1031,8 @@
     });
 
     document.addEventListener('click', (event) => {
+      if (event.target.closest('.dob-confirm')) return;
+
       const dismissReminder = event.target.closest('#payment-reminder-back');
       if (dismissReminder) {
         event.preventDefault();
