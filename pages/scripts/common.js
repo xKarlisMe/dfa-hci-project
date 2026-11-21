@@ -2,6 +2,7 @@
   const controls = 'input:not([type="hidden"]):not([type="search"]):not([type="submit"]):not([type="button"]), select, textarea';
   const errorClass = 'field-error';
   const storagePrefix = 'dfa-appointment:';
+  const testingModeStorageKey = 'dfa-developer-testing-mode';
   const nextPages = {
     'applicant-family.html': 'application-contact.html',
     'application-contact.html': 'review-payment.html',
@@ -11,8 +12,7 @@
     'group-application.html': 'group-contact.html',
     'group-contact.html': 'group-contact-person.html',
     'group-contact-person.html': 'group-review.html',
-    'group-review.html': 'group-consent.html',
-    'group-consent.html': 'group-payment-wallet.html'
+    'group-review.html': 'group-payment-wallet.html'
   };
   const choices = {
     region: ['ASIA PACIFIC', 'AMERICAS', 'EUROPE', 'MIDDLE EAST AND AFRICA'],
@@ -71,7 +71,8 @@
 
   function addChoices() {
     Object.entries(choices).forEach(([id, options]) => {
-      document.querySelectorAll(`select#${id}`).forEach((select) => {
+      const selector = id === 'city' ? 'select#city, select[id$="-contact-1"]' : `select#${id}`;
+      document.querySelectorAll(selector).forEach((select) => {
         [...select.options].forEach((option) => {
           if (option.value.toLowerCase().startsWith('para') && option.textContent.includes('City')) {
             option.value = 'Paranaque City';
@@ -167,6 +168,54 @@
     }
   }
 
+  function isLocalDevelopmentHost() {
+    const hostname = location.hostname.toLowerCase();
+    return location.protocol === 'file:' || hostname === 'localhost' || hostname.endsWith('.localhost')
+      || hostname === '::1' || hostname === '[::1]' || /^127(?:\.\d{1,3}){3}$/.test(hostname)
+      || hostname.endsWith('.test');
+  }
+
+  function isDeveloperTestingMode() {
+    if (!isLocalDevelopmentHost()) return false;
+    try {
+      const requestedMode = new URLSearchParams(location.search).get('dfa-testing');
+      if (requestedMode === '1') sessionStorage.setItem(testingModeStorageKey, 'enabled');
+      if (requestedMode === '0') sessionStorage.removeItem(testingModeStorageKey);
+      return sessionStorage.getItem(testingModeStorageKey) === 'enabled';
+    } catch {
+      return new URLSearchParams(location.search).get('dfa-testing') === '1';
+    }
+  }
+
+  function addDeveloperTestingBanner() {
+    if (!isDeveloperTestingMode()) return;
+    const main = document.querySelector('main');
+    if (!main) return;
+    const banner = document.createElement('aside');
+    banner.className = 'developer-testing-banner';
+    banner.setAttribute('role', 'status');
+    const message = document.createElement('span');
+    message.textContent = 'DEVELOPER / TESTING MODE — Required-field validation is bypassed.';
+    const exit = document.createElement('button');
+    exit.type = 'button';
+    exit.textContent = 'Exit testing mode';
+    exit.addEventListener('click', () => {
+      try {
+        sessionStorage.removeItem(testingModeStorageKey);
+      } catch {
+        // Reload still exits when session storage is unavailable.
+      }
+      const url = new URL(location.href);
+      url.searchParams.delete('dfa-testing');
+      history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+      location.reload();
+    });
+    banner.append(message, exit);
+    const intro = main.querySelector('.intro');
+    if (intro) intro.after(banner);
+    else main.prepend(banner);
+  }
+
   function clearAppointmentSession() {
     try {
       for (let index = sessionStorage.length - 1; index >= 0; index--) {
@@ -200,8 +249,11 @@
       if (value === null) return;
       if (control.type === 'radio') control.checked = control.value === value;
       else if (control.type === 'checkbox') control.checked = Boolean(value);
-      else if (control.tagName !== 'SELECT' || [...control.options].some((option) => option.value === value)) {
+      else if (control.tagName !== 'SELECT') {
         control.value = typeof value === 'string' ? value.toUpperCase() : value;
+      } else {
+        const option = [...control.options].find((item) => item.value.toLowerCase() === String(value).toLowerCase());
+        if (option) control.value = option.value;
       }
     });
   }
@@ -226,11 +278,26 @@
     picker.open = false;
   }
 
+  function updateAppointmentTime(date, clearSelection = false) {
+    const select = document.querySelector('#appointment-time');
+    if (!select) return;
+    select.disabled = !date;
+    if (clearSelection) {
+      select.value = '';
+      storeValue(getPageName(), 'appointment-time', '');
+    }
+    const savedTime = getStoredValue(getPageName(), 'appointment-time');
+    if (date && savedTime && [...select.options].some((option) => option.value === savedTime)) {
+      select.value = savedTime;
+    }
+  }
+
   function restoreDatePicker() {
     const picker = document.querySelector('.calendar-picker');
     const date = getStoredValue(getPageName(), 'appointment-date');
     if (!picker || !date) return;
     updateDatePicker(picker, date);
+    updateAppointmentTime(date);
     const next = document.querySelector('.actions button:disabled');
     if (next?.textContent.includes('Select date first')) {
       next.disabled = false;
@@ -349,6 +416,7 @@
   }
 
   function startMerchantCheckout() {
+    if (location.pathname.includes('/group/') && !validateStoredGroupApplicants()) return;
     const totals = updatePaymentSummary();
     if (!totals) return;
     const folder = location.pathname.split('/').slice(-2, -1)[0];
@@ -363,6 +431,57 @@
       ? '../group/group-confirmation.html'
       : '../individual/confirmation.html');
     window.location.href = '../other/payment-merchant.html';
+  }
+
+  function validateStoredGroupApplicants() {
+    if (isDeveloperTestingMode()) return true;
+    const count = Number(getStoredValue('group-booking', 'applicant-count')) || 2;
+    const requiredValues = [];
+    const leadFields = {
+      'group-personal.html': ['given-name', 'last-name', 'middle-name', 'mobile', 'email', 'dob-month', 'dob-day', 'dob-year', 'sex', 'civil-status'],
+      'group-family.html': ['field-42', 'field-43', 'field-44', 'field-45', 'field-46', 'field-47'],
+      'group-application.html': ['application-type', 'citizenship', 'foreign-passport', 'emergency-name', 'emergency-mobile'],
+      'group-contact.html': ['street', 'city', 'province', 'occupation']
+    };
+    Object.entries(leadFields).forEach(([page, fields]) => fields.forEach((field) => requiredValues.push([page, field])));
+    const leadOccupation = String(getStoredValue('group-contact.html', 'occupation') || '').toUpperCase();
+    if (leadOccupation !== 'STUDENT') requiredValues.push(['group-contact.html', 'office-phone']);
+    if (leadOccupation === 'OTHERS') requiredValues.push(['group-contact.html', 'occupation-other']);
+    requiredValues.push(['group-contact.html', 'postal-code']);
+    for (let index = 2; index <= count; index++) {
+      ['last', 'given', 'middle', 'dob-month', 'dob-day', 'dob-year', 'sex', 'civil-status']
+        .forEach((suffix) => requiredValues.push(['group-personal.html', `applicant-${index}-${suffix}`]));
+      ['family-0', 'family-1', 'family-2', 'family-3', 'family-4', 'family-5']
+        .forEach((suffix) => requiredValues.push(['group-family.html', `applicant-${index}-${suffix}`]));
+      ['application-0', 'application-1', 'application-2', 'application-3', 'foreign-passport']
+        .forEach((suffix) => requiredValues.push(['group-application.html', `applicant-${index}-${suffix}`]));
+      ['contact-0', 'contact-1', 'contact-2', 'contact-3', 'province', 'postal-code', 'occupation']
+        .forEach((suffix) => requiredValues.push(['group-contact.html', `applicant-${index}-${suffix}`]));
+      ['given', 'last'].forEach((suffix) => requiredValues.push(['group-contact-person.html', `group-member-${index}-${suffix}`]));
+      const occupation = String(getStoredValue('group-contact.html', `applicant-${index}-occupation`) || '').toUpperCase();
+      if (occupation !== 'STUDENT') requiredValues.push(['group-contact.html', `applicant-${index}-office-phone`]);
+      if (occupation === 'OTHERS') requiredValues.push(['group-contact.html', `applicant-${index}-occupation-other`]);
+    }
+    const missing = requiredValues.find(([page, field]) => {
+      const value = getStoredValue(page, field);
+      return value === null || value === undefined || value === '' || value === false;
+    });
+    if (!missing) return true;
+    let message = document.querySelector('#group-applicant-error');
+    if (!message) {
+      message = document.createElement('p');
+      message.id = 'group-applicant-error';
+      message.className = 'note field-error';
+      message.setAttribute('role', 'alert');
+      document.querySelector('.pay-summary')?.prepend(message);
+    }
+      message.replaceChildren(document.createTextNode('Some applicant information is incomplete. Complete the required fields for every applicant before payment. '));
+      const link = document.createElement('a');
+      link.href = 'group-personal.html#personal';
+      link.textContent = 'Return to Group Personal Information';
+      message.append(link);
+    message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return false;
   }
 
   function initializeMerchantPreview() {
@@ -427,6 +546,7 @@
   }
 
   const appointmentStoreKey = 'dfa-appointment-records:v1';
+  const cancelledAppointmentStoreKey = 'dfa-cancelled-appointments:v1';
 
   function getAppointmentRecords() {
     try {
@@ -445,8 +565,47 @@
     }
   }
 
+  function getStoredPageValues(page) {
+    const values = {};
+    try {
+      const prefix = `${storagePrefix}${page}:`;
+      for (let index = 0; index < sessionStorage.length; index++) {
+        const key = sessionStorage.key(index);
+        if (key?.startsWith(prefix)) values[key.slice(prefix.length)] = JSON.parse(sessionStorage.getItem(key));
+      }
+    } catch {
+      return values;
+    }
+    return values;
+  }
+
+  function collectGroupApplicantDetails(count) {
+    const pages = ['group-personal.html', 'group-family.html', 'group-application.html', 'group-contact.html', 'group-contact-person.html'];
+    const pageValues = Object.fromEntries(pages.map((page) => [page, getStoredPageValues(page)]));
+    return Array.from({ length: count }, (_, offset) => {
+      const number = offset + 1;
+      const fields = {};
+      pages.forEach((page) => {
+        Object.entries(pageValues[page]).forEach(([name, value]) => {
+          const belongsToApplicant = number === 1
+            ? !/^applicant-\d+-/.test(name) && !/^group-member-\d+-/.test(name)
+            : name.startsWith(`applicant-${number}-`) || name.startsWith(`group-member-${number}-`);
+          if (belongsToApplicant && value !== null && value !== '') fields[name] = value;
+        });
+      });
+      return { applicantNumber: number, fields };
+    });
+  }
+
   function ensureBaselineAppointments() {
     const records = getAppointmentRecords();
+    let cancelledCodes = [];
+    try {
+      const storedCodes = JSON.parse(localStorage.getItem(cancelledAppointmentStoreKey) || '[]');
+      if (Array.isArray(storedCodes)) cancelledCodes = storedCodes;
+    } catch {
+      cancelledCodes = [];
+    }
     const defaults = [
       {
         code: 'DFA-IND-2026-000001',
@@ -463,7 +622,7 @@
     ];
     let changed = false;
     defaults.forEach((defaultRecord) => {
-      if (!records.some((record) => record.code === defaultRecord.code)) {
+      if (!cancelledCodes.includes(defaultRecord.code) && !records.some((record) => record.code === defaultRecord.code)) {
         records.push(defaultRecord);
         changed = true;
       }
@@ -496,12 +655,14 @@
       url: mode === 'group' ? '../group/group-appointment-details.html' : 'appointment-details.html',
       office: getStoredValue(officePage, 'office'),
       date: getStoredValue(officePage, 'appointment-date'),
+      time: getStoredValue(officePage, 'appointment-time'),
       applicant: [
         getStoredValue(page, 'given-name'),
         getStoredValue(page, 'last-name')
       ].filter(Boolean).join(' '),
       mobile: getStoredValue(page, 'mobile'),
       applicants: getStoredValue('payment', 'applicants') || (mode === 'group' ? 2 : 1),
+      ...(mode === 'group' ? { applicantDetails: collectGroupApplicantDetails(Number(getStoredValue('payment', 'applicants')) || 2) } : {}),
       processing: getStoredValue('payment', 'processing') || 'regular',
       total: getStoredValue('payment', 'total')
     };
@@ -531,6 +692,70 @@
     window.location.href = record.url;
   }
 
+  function cancelSelectedAppointment() {
+    const status = document.querySelector('#cancellation-status');
+    const button = document.querySelector('#cancel-appointment-confirm');
+    const record = getStoredValue('lookup', 'record');
+    const code = record?.code || getStoredValue('lookup', 'appointment-code');
+    if (!code) {
+      status.textContent = 'We could not identify the selected appointment. Look it up again before cancelling.';
+      status.hidden = false;
+      status.setAttribute('role', 'alert');
+      return;
+    }
+    if (!window.confirm(`Cancel appointment ${code}? This cannot be undone.`)) return;
+
+    button.disabled = true;
+    let addedCancellationMarker = false;
+    try {
+      const records = JSON.parse(localStorage.getItem(appointmentStoreKey) || '[]');
+      if (!Array.isArray(records)) throw new Error('Appointment records are unavailable.');
+      const remaining = records.filter((item) => item.code !== code);
+      if (remaining.length === records.length) {
+        throw new Error('This appointment could not be found. It may already have been cancelled.');
+      }
+      const cancelledCodes = JSON.parse(localStorage.getItem(cancelledAppointmentStoreKey) || '[]');
+      if (!Array.isArray(cancelledCodes)) throw new Error('Cancellation records are unavailable.');
+      if (!cancelledCodes.includes(code)) {
+        cancelledCodes.push(code);
+        localStorage.setItem(cancelledAppointmentStoreKey, JSON.stringify(cancelledCodes));
+        addedCancellationMarker = true;
+      }
+      localStorage.setItem(appointmentStoreKey, JSON.stringify(remaining));
+      const savedRecords = JSON.parse(localStorage.getItem(appointmentStoreKey) || '[]');
+      if (!Array.isArray(savedRecords) || savedRecords.some((item) => item.code === code)) throw new Error('The appointment could not be removed from storage.');
+
+      storeValue('lookup', 'record', null);
+      storeValue('lookup', 'appointment-code', null);
+      document.querySelector('#dialog-title').textContent = 'Cancellation confirmed';
+      status.className = 'note';
+      status.textContent = `Appointment ${code} was successfully cancelled.`;
+      status.hidden = false;
+      status.setAttribute('role', 'status');
+      button.hidden = true;
+      const keepLink = document.querySelector('#keep-appointment');
+      if (keepLink) {
+        keepLink.href = 'view-appointment.html';
+        keepLink.textContent = 'Return to View Appointment';
+      }
+      document.querySelector('.warning')?.setAttribute('hidden', '');
+    } catch (error) {
+      if (addedCancellationMarker) {
+        try {
+          const cancelledCodes = JSON.parse(localStorage.getItem(cancelledAppointmentStoreKey) || '[]');
+          localStorage.setItem(cancelledAppointmentStoreKey, JSON.stringify(cancelledCodes.filter((item) => item !== code)));
+        } catch {
+          // Keep the original storage failure visible to the user.
+        }
+      }
+      status.className = 'note field-error';
+      status.textContent = error instanceof Error ? error.message : 'We could not cancel the appointment. Please try again.';
+      status.hidden = false;
+      status.setAttribute('role', 'alert');
+      button.disabled = false;
+    }
+  }
+
   function updateAppointmentDetails() {
     if (getPageName() !== 'appointment-details.html' && getPageName() !== 'group-appointment-details.html') return;
     const code = getStoredValue('lookup', 'appointment-code');
@@ -544,6 +769,7 @@
       if (email && label === 'registeredemail') detail.textContent = email;
       if (record?.office && label === 'dfaoffice') detail.textContent = record.office;
       if (record?.date && label === 'appointmentdate') detail.textContent = record.date;
+      if (record?.time && label === 'appointmenttime') detail.textContent = record.time;
       if (record?.applicant && (label === 'applicant' || label === 'primaryapplicantadultbooker' || label === 'applicant1bookingrepresentative')) detail.textContent = record.applicant;
       if (record?.mobile && label === 'contactnumber') detail.textContent = record.mobile;
       if (record?.processing && label === 'paymentstatus') detail.textContent = `Paid · ${record.processing === 'expedited' ? 'Expedited' : 'Regular'} processing`;
@@ -590,17 +816,10 @@
       COUNTRY: field(schedulePage, 'country'),
       'DFA CONSULAR OFFICE': field(schedulePage, 'office'),
       'CONSULAR OFFICE': field(schedulePage, 'office'),
-      'APPOINTMENT DATE': () => getStoredValue(datePage, 'appointment-date')
+      'APPOINTMENT DATE': () => getStoredValue(datePage, 'appointment-date'),
+      'APPOINTMENT TIME': () => getStoredValue(datePage, 'appointment-time')
     };
     updateReviewSection('Appointment schedule', scheduleValues);
-
-    if (isGroup) {
-      updateReviewSection('Group booking overview', {
-        'APPOINTMENT DATE': () => getStoredValue(datePage, 'appointment-date'),
-        'GROUP APPOINTMENT TIME': () => null,
-        'CONSULAR OFFICE': field(schedulePage, 'office')
-      });
-    }
 
     updateReviewSection('Personal information', {
       'FIRST NAME': field(personalPage, 'given-name'),
@@ -635,7 +854,11 @@
       'CITY / MUNICIPALITY': field(contactPage, 'city'),
       PROVINCE: field(contactPage, 'province'),
       'POSTAL CODE': field(contactPage, 'postal-code'),
-      OCCUPATION: field(contactPage, 'occupation'),
+      OCCUPATION: () => {
+        const occupation = getStoredValue(contactPage, 'occupation');
+        const other = getStoredValue(contactPage, 'occupation-other');
+        return occupation === 'OTHERS' && other ? `Others: ${other}` : occupation;
+      },
       'OFFICE TELEPHONE': field(contactPage, 'office-phone')
     });
 
@@ -881,6 +1104,7 @@
   }
 
   function validatePage() {
+    if (isDeveloperTestingMode()) return true;
     const primaryBirthdate = document.querySelector('details.dob select[id="dob-month"]')?.closest('details.dob');
     if (primaryBirthdate?.dataset.primaryUnderage === 'true') {
       primaryBirthdate.open = true;
@@ -934,15 +1158,213 @@
     });
   }
 
+  function updateOccupationFields() {
+    document.querySelectorAll('#occupation, select[id$="-occupation"]').forEach((occupation) => {
+      const prefix = occupation.id === 'occupation' ? '' : occupation.id.replace(/occupation$/, '');
+      const officePhone = document.getElementById(`${prefix}office-phone`);
+      const officePhoneField = document.getElementById(`${prefix}office-phone-field`);
+      const otherOccupation = document.getElementById(`${prefix}occupation-other`);
+      const otherOccupationField = document.getElementById(`${prefix}occupation-other-field`);
+      const isStudent = occupation.value === 'STUDENT';
+      const isOther = occupation.value === 'OTHERS';
+      if (officePhone) {
+        officePhone.required = !isStudent;
+        officePhone.disabled = isStudent;
+        if (isStudent) clearMessage(officePhone);
+      }
+      if (officePhoneField) officePhoneField.hidden = isStudent;
+      if (otherOccupation) {
+        otherOccupation.required = isOther;
+        otherOccupation.disabled = !isOther;
+        if (!isOther) clearMessage(otherOccupation);
+      }
+      if (otherOccupationField) otherOccupationField.hidden = !isOther;
+
+      [[officePhone, isStudent], [otherOccupation, !isOther]].forEach(([control, remove]) => {
+        const label = control?.labels?.[0];
+        const marker = label?.querySelector('.required-marker');
+        if (remove) marker?.remove();
+        else if (label && !marker) {
+          const requiredMarker = document.createElement('span');
+          requiredMarker.className = 'required-marker';
+          requiredMarker.textContent = ' *';
+          label.append(requiredMarker);
+        }
+      });
+    });
+  }
+
+  const groupApplicantLimit = 5;
+
+  function clearApplicantValues(index) {
+    try {
+      const match = new RegExp(`(?:^|-)applicant-${index}(?:-|$)|(?:^|-)group-member-${index}(?:-|$)`);
+      for (let position = sessionStorage.length - 1; position >= 0; position--) {
+        const key = sessionStorage.key(position);
+        if (key?.startsWith(storagePrefix) && match.test(key.slice(key.lastIndexOf(':') + 1))) {
+          sessionStorage.removeItem(key);
+        }
+      }
+    } catch {
+      return;
+    }
+  }
+
+  function createApplicantSection(template, index) {
+    const section = template.cloneNode(true);
+    const replacements = section.querySelectorAll('[id], [name], [for], [aria-labelledby], [aria-label]');
+    [section, ...replacements].forEach((element) => {
+      ['id', 'name', 'for', 'aria-labelledby', 'aria-label'].forEach((attribute) => {
+        const value = element.getAttribute?.(attribute);
+        if (value) element.setAttribute(attribute, value
+          .replaceAll('applicant-2', `applicant-${index}`)
+          .replaceAll('group-member-2', `group-member-${index}`)
+          .replace(/Applicant 2/g, `Applicant ${index}`));
+      });
+    });
+    section.dataset.applicantIndex = String(index);
+    section.dataset.generatedApplicant = 'true';
+    const heading = section.querySelector('h3');
+    if (heading) heading.textContent = heading.textContent.replace(/Applicant 2/g, `Applicant ${index}`);
+    section.querySelectorAll('.dob-confirm, .field-error, .required-marker').forEach((item) => item.remove());
+    section.querySelectorAll('[aria-invalid]').forEach((item) => item.removeAttribute('aria-invalid'));
+    section.querySelectorAll('input, textarea').forEach((control) => { control.value = ''; });
+    section.querySelectorAll('select').forEach((control) => { control.selectedIndex = 0; });
+    section.querySelectorAll('details.dob').forEach((disclosure) => {
+      disclosure.open = false;
+      delete disclosure.dataset.confirmedBirthdate;
+      delete disclosure.dataset.primaryUnderage;
+    });
+    section.querySelectorAll('input, select, textarea').forEach((control) => {
+      configureInput(control);
+      control.required = true;
+      const label = control.type === 'radio'
+        ? control.closest('fieldset')?.querySelector('legend')
+        : control.labels?.[0];
+      if (control.required && label && !label.querySelector('.required-marker') && !label.textContent.trim().endsWith('*')) {
+        const marker = document.createElement('span');
+        marker.className = 'required-marker';
+        marker.textContent = ' *';
+        label.append(marker);
+      }
+    });
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn secondary remove-applicant';
+    remove.textContent = `Remove Applicant ${index}`;
+    remove.setAttribute('aria-label', `Remove Applicant ${index}`);
+    section.append(remove);
+    return section;
+  }
+
+  function initializeGroupApplicants() {
+    if (!location.pathname.includes('/group/')) return;
+    let count = Number.parseInt(getStoredValue('group-booking', 'applicant-count'), 10);
+    if (!Number.isFinite(count)) count = 2;
+    count = Math.max(2, Math.min(groupApplicantLimit, count));
+    const personalTemplate = document.querySelector('.additional > section.chunk');
+    const namesTemplate = document.querySelector('#other-applicants > section.chunk');
+    const manager = document.querySelector('.manager');
+
+    function renderApplicants() {
+      const personalRoot = document.querySelector('.additional');
+      if (personalRoot && personalTemplate?.parentElement === personalRoot) {
+        personalRoot.querySelectorAll('[data-generated-applicant="true"]').forEach((item) => item.remove());
+        for (let index = 3; index <= count; index++) personalRoot.append(createApplicantSection(personalTemplate, index));
+      }
+      if (namesTemplate?.parentElement?.id === 'other-applicants') {
+        const root = namesTemplate.parentElement;
+        root.querySelectorAll('[data-generated-applicant="true"]').forEach((item) => item.remove());
+        for (let index = 3; index <= count; index++) root.append(createApplicantSection(namesTemplate, index));
+      }
+      document.querySelectorAll('.remove-applicant').forEach((button) => {
+        button.disabled = Number.parseInt(button.closest('[data-applicant-index]')?.dataset.applicantIndex, 10) !== count;
+      });
+      document.querySelectorAll('.manager').forEach((item) => {
+        const total = item.querySelector('.manager-header strong');
+        if (total) total.textContent = `${count} applicants`;
+        const [add, remove] = item.querySelectorAll('.manager-actions button');
+        if (add) {
+          add.disabled = count >= groupApplicantLimit;
+          add.removeAttribute('aria-label');
+          add.textContent = count >= groupApplicantLimit ? 'Maximum 5 Applicants' : '+ Add 1 Applicant';
+        }
+        if (remove) {
+          remove.disabled = count <= 2;
+          remove.textContent = count <= 2 ? 'Minimum 2 applicants' : '− Remove 1 Applicant';
+          remove.setAttribute('aria-label', count <= 2 ? 'Minimum 2 applicants' : 'Remove the last additional applicant');
+        }
+      });
+      const overviewCount = [...document.querySelectorAll('section.chunk dt')]
+        .find((term) => normalizeLabel(term.textContent) === 'applicants')?.nextElementSibling;
+      if (overviewCount) overviewCount.textContent = `${count} applicants`;
+      const paymentCount = [...document.querySelectorAll('.pay-summary .amount-row')]
+        .find((row) => row.querySelector('span')?.textContent.trim() === 'Applicants')?.querySelector('strong');
+      if (paymentCount) paymentCount.textContent = `${count} applicants`;
+      storeValue('payment', 'applicants', count);
+      storeValue('group-booking', 'applicant-count', count);
+      if (document.querySelector('.pay-summary')) updatePaymentSummary();
+    }
+
+    renderApplicants();
+    if (manager) {
+      manager.addEventListener('click', (event) => {
+        const buttons = manager.querySelectorAll('.manager-actions button');
+        if (event.target.closest('.manager-actions button') === buttons[0] && count < groupApplicantLimit) count++;
+        else if (event.target.closest('.manager-actions button') === buttons[1] && count > 2) {
+          clearApplicantValues(count);
+          count--;
+        } else return;
+        renderApplicants();
+        initializeBirthdates();
+        updateOccupationFields();
+      });
+    }
+
+    document.addEventListener('click', (event) => {
+      const remove = event.target.closest('.remove-applicant');
+      if (!remove || count <= 2) return;
+      clearApplicantValues(count);
+      count--;
+      renderApplicants();
+      initializeBirthdates();
+      updateOccupationFields();
+    });
+
+    if (document.body.classList.contains('review-screen') || getPageName() === 'group-review.html') {
+      const applicantsSection = [...document.querySelectorAll('section.chunk')].find((item) =>
+        item.querySelector(':scope > h3')?.textContent.trim() === 'Group applicants'
+      );
+      const memberRow = applicantsSection?.querySelector('.applicant-review-row');
+      if (applicantsSection && memberRow) {
+        applicantsSection.querySelectorAll('[data-generated-applicant="true"]').forEach((item) => item.remove());
+        const secondGiven = getStoredValue('group-contact-person.html', 'group-member-2-given');
+        const secondLast = getStoredValue('group-contact-person.html', 'group-member-2-last');
+        memberRow.querySelector('p').textContent = [secondGiven, secondLast].filter(Boolean).join(' ') || 'Name entered in Group Contact Information';
+        for (let index = 3; index <= count; index++) {
+          const row = memberRow.cloneNode(true);
+          row.dataset.generatedApplicant = 'true';
+          row.querySelector('strong').textContent = `Applicant ${index}`;
+          const given = getStoredValue('group-contact-person.html', `group-member-${index}-given`);
+          const last = getStoredValue('group-contact-person.html', `group-member-${index}-last`);
+          row.querySelector('p').textContent = [given, last].filter(Boolean).join(' ') || 'Name entered in Group Contact Information';
+          applicantsSection.insertBefore(row, applicantsSection.querySelector('.edit'));
+        }
+      }
+    }
+  }
+
   function init() {
     const styles = document.createElement('style');
-    styles.textContent = 'input[type="text"],input[type="email"],input[type="tel"],input[type="search"],textarea{text-transform:uppercase}.field-error{display:block;color:#9a3412;font-size:13px;line-height:20px;margin-top:4px}.required-marker{color:#9a3412}.field [aria-invalid="true"],.check [aria-invalid="true"]{outline:2px solid #be2338;outline-offset:2px;border:2px solid #be2338!important}.field [aria-invalid="true"]:focus-visible,.check [aria-invalid="true"]:focus-visible{outline:3px solid #266fab;outline-offset:3px;border:2px solid #be2338!important}';
+    styles.textContent = 'input[type="text"],input[type="email"],input[type="tel"],input[type="search"],textarea{text-transform:uppercase}[hidden]{display:none!important}.field-error{display:block;color:#9a3412;font-size:13px;line-height:20px;margin-top:4px}.required-marker{color:#9a3412}.field [aria-invalid="true"],.check [aria-invalid="true"]{outline:2px solid #be2338;outline-offset:2px;border:2px solid #be2338!important}.field [aria-invalid="true"]:focus-visible,.check [aria-invalid="true"]:focus-visible{outline:3px solid #266fab;outline-offset:3px;border:2px solid #be2338!important}.developer-testing-banner{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 20px;padding:14px 18px;border:2px solid #a15c00;border-radius:8px;background:#fff4d6;color:#633900;font-weight:700}.developer-testing-banner button{padding:8px 12px;border:1px solid #633900;border-radius:6px;background:white;color:#633900;font:inherit;cursor:pointer}';
     document.head.append(styles);
     addChoices();
     prepareControls();
     configureLookupCode();
+    initializeGroupApplicants();
     ensureBaselineAppointments();
     restoreControls();
+    updateOccupationFields();
     initializeBirthdates();
     updateSiteDetails();
     restoreDatePicker();
@@ -951,6 +1373,15 @@
     initializeConfirmation();
     initializePayment();
     initializeMerchantPreview();
+    addDeveloperTestingBanner();
+
+    const cancelButton = document.querySelector('#cancel-appointment-confirm');
+    if (cancelButton) {
+      const selectedCode = getStoredValue('lookup', 'record')?.code || getStoredValue('lookup', 'appointment-code');
+      const codeElement = document.querySelector('#cancel-appointment-code');
+      if (selectedCode && codeElement) codeElement.textContent = selectedCode;
+      cancelButton.addEventListener('click', cancelSelectedAppointment);
+    }
 
     const lookupAction = document.querySelector('.management button.disabled');
     if (lookupAction) {
@@ -977,10 +1408,13 @@
       const control = event.target;
       saveControl(control);
       if (control.matches('#office')) updateSiteDetails();
+      if (control.matches('#occupation, select[id$="-occupation"]')) updateOccupationFields();
       if (control.name === 'processing') updatePaymentSummary();
       if (control.name === 'provider') updatePaymentProvider();
       if (control.matches(`${controls}[required]`) && control.checkValidity()) clearMessage(control);
     });
+
+    window.addEventListener('pagehide', saveVisibleControls);
 
     document.addEventListener('click', (event) => {
       const day = event.target.closest('.calendar-picker .day.available');
@@ -990,8 +1424,10 @@
         picker.querySelectorAll('.day[aria-pressed]').forEach((item) => item.removeAttribute('aria-pressed'));
         day.setAttribute('aria-pressed', 'true');
         const summary = picker.querySelector('summary');
+        const previousDate = getStoredValue(getPageName(), 'appointment-date');
         updateDatePicker(picker, date);
         storeValue(getPageName(), 'appointment-date', date);
+        updateAppointmentTime(date, Boolean(previousDate && previousDate !== date));
         clearCalendarMessage(picker);
         summary?.focus();
         const next = document.querySelector('.actions button:disabled');
@@ -1002,6 +1438,13 @@
         }
       }
     });
+
+    const timeSelect = document.querySelector('#appointment-time');
+    if (timeSelect) {
+      timeSelect.addEventListener('change', () => {
+        storeValue(getPageName(), 'appointment-time', timeSelect.value);
+      });
+    }
 
     document.querySelectorAll('form').forEach((form) => {
       form.noValidate = true;

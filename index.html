@@ -2,9 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0; url=pages/homepage/index.html">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DFA Passport Appointment System</title>
+  <script>
+    const destination = new URL('pages/homepage/index.html', window.location.href);
+    destination.search = window.location.search;
+    destination.hash = window.location.hash;
+    window.location.replace(destination.href);
+  </script>
 </head>
 <body>
   <p><a href="pages/homepage/index.html">Open the DFA Passport Appointment System</a></p>
