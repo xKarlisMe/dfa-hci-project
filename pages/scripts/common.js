@@ -7,8 +7,7 @@
     'applicant-family.html': 'application-contact.html',
     'application-contact.html': 'review-payment.html',
     'review-payment.html': 'payment-wallet.html',
-    'group-personal.html': 'group-family.html',
-    'group-family.html': 'group-application.html',
+    'group-personal.html': 'group-application.html',
     'group-application.html': 'group-contact.html',
     'group-contact.html': 'group-contact-person.html',
     'group-contact-person.html': 'group-review.html',
@@ -195,7 +194,9 @@
     banner.className = 'developer-testing-banner';
     banner.setAttribute('role', 'status');
     const message = document.createElement('span');
-    message.textContent = 'DEVELOPER / TESTING MODE — Required-field validation is bypassed.';
+    const progressHeading = document.querySelector('.sidebar[aria-label="Booking progress"] h2')?.textContent.trim();
+    const progressStatus = progressHeading ? ` Progress tracker preview is active (${progressHeading}).` : '';
+    message.textContent = `DEVELOPER / TESTING MODE - Required-field and dropdown validation are bypassed.${progressStatus}`;
     const exit = document.createElement('button');
     exit.type = 'button';
     exit.textContent = 'Exit testing mode';
@@ -214,6 +215,52 @@
     const intro = main.querySelector('.intro');
     if (intro) intro.after(banner);
     else main.prepend(banner);
+  }
+
+  function initializeHorizontalProgress() {
+    const sidebar = document.querySelector('.sidebar[aria-label="Booking progress"]');
+    const list = sidebar?.querySelector('ol');
+    if (!sidebar || !list) return;
+    const steps = [...list.querySelectorAll(':scope > .step')];
+    if (!steps.length) return;
+
+    const currentIndex = steps.findIndex((step) => step.classList.contains('current'));
+    const completedCount = steps.filter((step) => step.classList.contains('done')).length;
+    const activeIndex = currentIndex >= 0 ? currentIndex : Math.max(0, completedCount - 1);
+    const trackInset = 50 / steps.length;
+    const trackLength = 100 - trackInset * 2;
+    const progressRatio = steps.length === 1 ? 1 : activeIndex / (steps.length - 1);
+    const targetWidth = `${trackLength * progressRatio}%`;
+    const progressStorageKey = `${storagePrefix}progress-width`;
+    let previousRatio = 0;
+    try {
+      const savedRatio = Number(sessionStorage.getItem(progressStorageKey));
+      if (Number.isFinite(savedRatio)) previousRatio = Math.max(0, Math.min(1, savedRatio));
+      sessionStorage.setItem(progressStorageKey, String(progressRatio));
+    } catch {
+      previousRatio = 0;
+    }
+
+    document.body.classList.add('has-horizontal-progress');
+    list.classList.add('horizontal-progress-list');
+    list.style.setProperty('--step-count', steps.length);
+    list.style.setProperty('--track-inset', `${trackInset}%`);
+    list.style.setProperty('--progress-fill-width', `${trackLength * previousRatio}%`);
+
+    steps.forEach((step) => {
+      const number = step.querySelector(':scope > .number');
+      const icon = step.querySelector(':scope > img.icon');
+      if (!number || step.querySelector(':scope > .progress-marker')) return;
+      const marker = document.createElement('span');
+      marker.className = 'progress-marker';
+      marker.append(number);
+      if (icon) marker.append(icon);
+      step.prepend(marker);
+    });
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => list.style.setProperty('--progress-fill-width', targetWidth));
+    });
   }
 
   function clearAppointmentSession() {
@@ -438,8 +485,7 @@
     const count = Number(getStoredValue('group-booking', 'applicant-count')) || 2;
     const requiredValues = [];
     const leadFields = {
-      'group-personal.html': ['given-name', 'last-name', 'middle-name', 'mobile', 'email', 'dob-month', 'dob-day', 'dob-year', 'sex', 'civil-status'],
-      'group-family.html': ['field-42', 'field-43', 'field-44', 'field-45', 'field-46', 'field-47'],
+      'group-personal.html': ['given-name', 'last-name', 'middle-name', 'mobile', 'email', 'dob-month', 'dob-day', 'dob-year', 'sex', 'civil-status', 'field-42', 'field-43', 'field-44', 'field-45', 'field-46', 'field-47'],
       'group-application.html': ['application-type', 'citizenship', 'foreign-passport', 'emergency-name', 'emergency-mobile'],
       'group-contact.html': ['street', 'city', 'province', 'occupation']
     };
@@ -452,7 +498,7 @@
       ['last', 'given', 'middle', 'dob-month', 'dob-day', 'dob-year', 'sex', 'civil-status']
         .forEach((suffix) => requiredValues.push(['group-personal.html', `applicant-${index}-${suffix}`]));
       ['family-0', 'family-1', 'family-2', 'family-3', 'family-4', 'family-5']
-        .forEach((suffix) => requiredValues.push(['group-family.html', `applicant-${index}-${suffix}`]));
+        .forEach((suffix) => requiredValues.push(['group-personal.html', `applicant-${index}-${suffix}`]));
       ['application-0', 'application-1', 'application-2', 'application-3', 'foreign-passport']
         .forEach((suffix) => requiredValues.push(['group-application.html', `applicant-${index}-${suffix}`]));
       ['contact-0', 'contact-1', 'contact-2', 'contact-3', 'province', 'postal-code', 'occupation']
@@ -580,7 +626,7 @@
   }
 
   function collectGroupApplicantDetails(count) {
-    const pages = ['group-personal.html', 'group-family.html', 'group-application.html', 'group-contact.html', 'group-contact-person.html'];
+    const pages = ['group-personal.html', 'group-application.html', 'group-contact.html', 'group-contact-person.html'];
     const pageValues = Object.fromEntries(pages.map((page) => [page, getStoredPageValues(page)]));
     return Array.from({ length: count }, (_, offset) => {
       const number = offset + 1;
@@ -806,7 +852,7 @@
     const schedulePage = isGroup ? 'group-site.html' : 'appointment-schedule.html';
     const datePage = isGroup ? 'group-site.html' : 'appointment-schedule.html';
     const personalPage = isGroup ? 'group-personal.html' : 'applicant-family.html';
-    const familyPage = isGroup ? 'group-family.html' : 'applicant-family.html';
+    const familyPage = isGroup ? 'group-personal.html' : 'applicant-family.html';
     const applicationPage = isGroup ? 'group-application.html' : 'application-contact.html';
     const contactPage = isGroup ? 'group-contact.html' : 'application-contact.html';
     const field = makeField;
@@ -1085,6 +1131,10 @@
   }
 
   function validate(control, showRequiredState = false) {
+    if (isDeveloperTestingMode()) {
+      clearMessage(control);
+      return true;
+    }
     const group = getGroup(control);
     const checked = control.type === 'radio' ? group.some((item) => item.checked) : true;
     const valid = checked && control.checkValidity();
@@ -1374,6 +1424,7 @@
     initializePayment();
     initializeMerchantPreview();
     addDeveloperTestingBanner();
+    initializeHorizontalProgress();
 
     const cancelButton = document.querySelector('#cancel-appointment-confirm');
     if (cancelButton) {
