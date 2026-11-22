@@ -7,10 +7,8 @@
     'applicant-family.html': 'application-contact.html',
     'application-contact.html': 'review-payment.html',
     'review-payment.html': 'payment-wallet.html',
-    'group-personal.html': 'group-application.html',
-    'group-application.html': 'group-contact.html',
-    'group-contact.html': 'group-contact-person.html',
-    'group-contact-person.html': 'group-review.html',
+    'group-personal.html': 'group-step-3.html',
+    'group-step-3.html': 'group-review.html',
     'group-review.html': 'group-payment-wallet.html'
   };
   const choices = {
@@ -147,7 +145,8 @@
   }
 
   function getPageName() {
-    return location.pathname.split('/').pop();
+    const page = location.pathname.split('/').pop();
+    return page === 'group-step-3.html' ? 'group-application.html' : page;
   }
 
   function getStoredValue(page, field) {
@@ -196,7 +195,13 @@
     const message = document.createElement('span');
     const progressHeading = document.querySelector('.sidebar[aria-label="Booking progress"] h2')?.textContent.trim();
     const progressStatus = progressHeading ? ` Progress tracker preview is active (${progressHeading}).` : '';
-    message.textContent = `DEVELOPER / TESTING MODE - Required-field and dropdown validation are bypassed.${progressStatus}`;
+    const combinedGroupStage = location.pathname.endsWith('/group-step-3.html') || location.pathname.endsWith('/group-application.html')
+      ? ' Group Step 3 includes application, contact, and group contact person sections on this page.'
+      : '';
+    const merchantPreviewStatus = document.body.classList.contains('merchant-preview')
+      ? ' Testing includes GCash, Maya, BPI, BDO, UnionBank, and QR Ph previews with a simulated receipt; no funds are transferred.'
+      : '';
+    message.textContent = `DEVELOPER / TESTING MODE - Required-field and dropdown validation are bypassed.${progressStatus}${combinedGroupStage}${merchantPreviewStatus}`;
     const exit = document.createElement('button');
     exit.type = 'button';
     exit.textContent = 'Exit testing mode';
@@ -486,14 +491,13 @@
     const requiredValues = [];
     const leadFields = {
       'group-personal.html': ['given-name', 'last-name', 'middle-name', 'mobile', 'email', 'dob-month', 'dob-day', 'dob-year', 'sex', 'civil-status', 'field-42', 'field-43', 'field-44', 'field-45', 'field-46', 'field-47'],
-      'group-application.html': ['application-type', 'citizenship', 'foreign-passport', 'emergency-name', 'emergency-mobile'],
-      'group-contact.html': ['street', 'city', 'province', 'occupation']
+      'group-application.html': ['application-type', 'citizenship', 'foreign-passport', 'emergency-name', 'emergency-mobile', 'street', 'city', 'province', 'occupation', 'field-70', 'field-71', 'field-72', 'field-73']
     };
     Object.entries(leadFields).forEach(([page, fields]) => fields.forEach((field) => requiredValues.push([page, field])));
-    const leadOccupation = String(getStoredValue('group-contact.html', 'occupation') || '').toUpperCase();
-    if (leadOccupation !== 'STUDENT') requiredValues.push(['group-contact.html', 'office-phone']);
-    if (leadOccupation === 'OTHERS') requiredValues.push(['group-contact.html', 'occupation-other']);
-    requiredValues.push(['group-contact.html', 'postal-code']);
+    const leadOccupation = String(getStoredValue('group-application.html', 'occupation') || '').toUpperCase();
+    if (leadOccupation !== 'STUDENT') requiredValues.push(['group-application.html', 'office-phone']);
+    if (leadOccupation === 'OTHERS') requiredValues.push(['group-application.html', 'occupation-other']);
+    requiredValues.push(['group-application.html', 'postal-code']);
     for (let index = 2; index <= count; index++) {
       ['last', 'given', 'middle', 'dob-month', 'dob-day', 'dob-year', 'sex', 'civil-status']
         .forEach((suffix) => requiredValues.push(['group-personal.html', `applicant-${index}-${suffix}`]));
@@ -502,11 +506,11 @@
       ['application-0', 'application-1', 'application-2', 'application-3', 'foreign-passport']
         .forEach((suffix) => requiredValues.push(['group-application.html', `applicant-${index}-${suffix}`]));
       ['contact-0', 'contact-1', 'contact-2', 'contact-3', 'province', 'postal-code', 'occupation']
-        .forEach((suffix) => requiredValues.push(['group-contact.html', `applicant-${index}-${suffix}`]));
-      ['given', 'last'].forEach((suffix) => requiredValues.push(['group-contact-person.html', `group-member-${index}-${suffix}`]));
-      const occupation = String(getStoredValue('group-contact.html', `applicant-${index}-occupation`) || '').toUpperCase();
-      if (occupation !== 'STUDENT') requiredValues.push(['group-contact.html', `applicant-${index}-office-phone`]);
-      if (occupation === 'OTHERS') requiredValues.push(['group-contact.html', `applicant-${index}-occupation-other`]);
+        .forEach((suffix) => requiredValues.push(['group-application.html', `applicant-${index}-${suffix}`]));
+      ['given', 'last'].forEach((suffix) => requiredValues.push(['group-application.html', `group-member-${index}-${suffix}`]));
+      const occupation = String(getStoredValue('group-application.html', `applicant-${index}-occupation`) || '').toUpperCase();
+      if (occupation !== 'STUDENT') requiredValues.push(['group-application.html', `applicant-${index}-office-phone`]);
+      if (occupation === 'OTHERS') requiredValues.push(['group-application.html', `applicant-${index}-occupation-other`]);
     }
     const missing = requiredValues.find(([page, field]) => {
       const value = getStoredValue(page, field);
@@ -533,20 +537,119 @@
   function initializeMerchantPreview() {
     if (!document.body.classList.contains('merchant-preview')) return;
     const mode = getStoredValue('payment', 'mode') || 'individual';
-    const provider = getStoredValue('payment', 'provider') || 'QR Ph';
-    const channel = getStoredValue('payment', 'channel') || 'QR payment';
+    const providerChannels = {
+      GCash: 'E-wallet',
+      Maya: 'E-wallet',
+      BPI: 'Online banking',
+      BDO: 'Online banking',
+      UnionBank: 'Online banking',
+      'QR Ph': 'QR payment'
+    };
+    const providersByChannel = {
+      'E-wallet': ['GCash', 'Maya'],
+      'Online banking': ['BPI', 'BDO', 'UnionBank'],
+      'QR payment': ['QR Ph']
+    };
+    const providerInfo = {
+      GCash: { mark: 'G', theme: 'gcash', instruction: 'GCash wallet payment preview', details: 'A GCash payment would normally be reviewed in the GCash app. This demo does not connect to an account or request a PIN or OTP.' },
+      Maya: { mark: 'M', theme: 'maya', instruction: 'Maya wallet payment preview', details: 'A Maya payment would normally be reviewed in the Maya app. This demo does not connect to an account or request a password or OTP.' },
+      BPI: { mark: 'BPI', theme: 'bpi', instruction: 'BPI bank transfer preview', details: 'Demo beneficiary: DFA Passport Appointments - demo account ending 0412. No bank transfer can be initiated from this screen.' },
+      BDO: { mark: 'BDO', theme: 'bdo', instruction: 'BDO bank transfer preview', details: 'Demo beneficiary: DFA Passport Appointments - demo account ending 7820. No bank transfer can be initiated from this screen.' },
+      UnionBank: { mark: 'UB', theme: 'unionbank', instruction: 'UnionBank transfer preview', details: 'Demo beneficiary: DFA Passport Appointments - demo account ending 5638. No bank transfer can be initiated from this screen.' },
+      'QR Ph': { mark: 'QR', theme: 'qrph', instruction: 'QR Ph digital payment preview', details: 'A QR Ph checkout would normally show a payable QR code. The pattern shown here is decorative and cannot be scanned or paid.' }
+    };
     const processing = getStoredValue('payment', 'processing') || 'regular';
-    const applicants = getStoredValue('payment', 'applicants') || 1;
-    const total = getStoredValue('payment', 'total') || 1000;
-    const methodName = channel === 'QR payment' ? 'QR' : channel.toLowerCase();
-    document.querySelector('#merchant-title').textContent = `${provider} checkout`;
-    document.querySelector('#merchant-description').textContent = `Review the ${methodName} payment details before continuing.`;
-    document.querySelector('#merchant-provider').textContent = `${provider} · ${channel}`;
+    const applicants = getStoredValue('payment', 'applicants') || (mode === 'group' ? 2 : 1);
+    const total = getStoredValue('payment', 'total') || (mode === 'group' ? 2000 : 1000);
+    const schedulePage = mode === 'group' ? 'group-site.html' : 'appointment-schedule.html';
+    const appointmentDate = getStoredValue(schedulePage, 'appointment-date');
+    const appointmentTime = getStoredValue(schedulePage, 'appointment-time');
+    const dateTime = new Intl.DateTimeFormat('en-PH', {
+      dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila'
+    }).format(new Date());
+    let transactionId = getStoredValue('payment', 'demo-transaction-id');
+    let reference = getStoredValue('payment', 'demo-reference');
+    if (!transactionId) {
+      transactionId = `DEMO-${Date.now().toString(36).toUpperCase()}`;
+      storeValue('payment', 'demo-transaction-id', transactionId);
+    }
+    if (!reference) {
+      reference = `DFA-${Date.now().toString().slice(-8)}`;
+      storeValue('payment', 'demo-reference', reference);
+    }
+
+    const initialProvider = getStoredValue('payment', 'provider') || 'GCash';
+    const initialChannel = providerChannels[initialProvider] || getStoredValue('payment', 'channel') || 'E-wallet';
+    const nav = document.querySelector('#merchant-provider-nav');
+    const surface = document.querySelector('#merchant-provider-surface');
+    const channelButtons = [...document.querySelectorAll('[data-merchant-channel]')];
+    let currentChannel = providersByChannel[initialChannel] ? initialChannel : 'E-wallet';
+
     document.querySelector('#merchant-appointment').textContent = mode === 'group' ? 'Group appointment' : 'Individual appointment';
-    document.querySelector('#merchant-applicants').textContent = `${applicants} applicant${applicants === 1 ? '' : 's'}`;
+    document.querySelector('#merchant-schedule').textContent = [appointmentDate, appointmentTime].filter(Boolean).join(' / ') || 'Sample appointment schedule';
+    document.querySelector('#merchant-applicants').textContent = `${applicants} applicant${Number(applicants) === 1 ? '' : 's'}`;
     document.querySelector('#merchant-processing').textContent = `${processing === 'expedited' ? 'Expedited' : 'Regular'} processing`;
     document.querySelector('#merchant-total').textContent = formatPeso(total);
-    document.querySelector('#merchant-back').href = getStoredValue('payment', 'return-url') || '../individual/payment-wallet.html';
+    document.querySelector('#merchant-back').href = getStoredValue('payment', 'return-url') || (mode === 'group' ? '../group/group-payment-wallet.html' : '../individual/payment-wallet.html');
+
+    function showProvider(provider) {
+      const info = providerInfo[provider] || providerInfo.GCash;
+      const channel = providerChannels[provider] || currentChannel;
+      currentChannel = channel;
+      storeValue('payment', 'provider', provider);
+      storeValue('payment', 'channel', channel);
+      document.querySelector('#merchant-title').textContent = `${provider} demo checkout`;
+      document.querySelector('#merchant-description').textContent = `Review this simulated ${channel.toLowerCase()} interface. No real payment will be processed.`;
+      document.querySelector('#merchant-provider').textContent = `${provider} - ${channel}`;
+      document.querySelector('#merchant-brand-name').textContent = provider;
+      document.querySelector('#merchant-brand-mark').textContent = info.mark;
+      document.querySelector('#merchant-provider-description').textContent = info.instruction;
+      document.querySelector('#merchant-provider-instructions').textContent = info.details;
+      surface.dataset.provider = info.theme;
+      surface.className = `merchant-provider-surface provider-${info.theme}`;
+      document.querySelector('#merchant-transaction-id').textContent = transactionId;
+      document.querySelector('#merchant-reference').textContent = reference;
+      document.querySelector('#merchant-amount').textContent = formatPeso(total);
+      document.querySelector('#merchant-datetime').textContent = dateTime;
+      document.querySelector('#merchant-status').textContent = 'DEMO ONLY - NOT PAID';
+      document.querySelector('#merchant-qr-preview').hidden = provider !== 'QR Ph';
+      nav.querySelectorAll('[data-merchant-provider]').forEach((button) => {
+        const selected = button.dataset.merchantProvider === provider;
+        button.setAttribute('aria-pressed', String(selected));
+      });
+      channelButtons.forEach((button) => {
+        const selected = button.dataset.merchantChannel === channel;
+        button.classList.toggle('primary', selected);
+        button.classList.toggle('secondary', !selected);
+        button.setAttribute('aria-pressed', String(selected));
+      });
+    }
+
+    function showChannel(channel, preferredProvider) {
+      currentChannel = providersByChannel[channel] ? channel : 'E-wallet';
+      nav.replaceChildren();
+      providersByChannel[currentChannel].forEach((provider) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn secondary merchant-provider-choice';
+        button.dataset.merchantProvider = provider;
+        button.textContent = provider;
+        nav.append(button);
+      });
+      const provider = providersByChannel[currentChannel].includes(preferredProvider)
+        ? preferredProvider
+        : providersByChannel[currentChannel][0];
+      showProvider(provider);
+    }
+
+    channelButtons.forEach((button) => button.addEventListener('click', () => {
+      showChannel(button.dataset.merchantChannel, '');
+    }));
+    nav.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-merchant-provider]');
+      if (button) showProvider(button.dataset.merchantProvider);
+    });
+    showChannel(currentChannel, initialProvider);
   }
 
   function configureLookupCode() {
@@ -626,7 +729,7 @@
   }
 
   function collectGroupApplicantDetails(count) {
-    const pages = ['group-personal.html', 'group-application.html', 'group-contact.html', 'group-contact-person.html'];
+    const pages = ['group-personal.html', 'group-application.html'];
     const pageValues = Object.fromEntries(pages.map((page) => [page, getStoredPageValues(page)]));
     return Array.from({ length: count }, (_, offset) => {
       const number = offset + 1;
@@ -824,15 +927,33 @@
   }
 
   function finishMerchantPreview() {
+    if (document.body.dataset.demoReceiptShown === 'true') return;
     const record = registerSubmittedAppointment();
     storeValue('payment', 'status', 'demo-paid');
+    document.body.dataset.demoReceiptShown = 'true';
+    const provider = getStoredValue('payment', 'provider') || 'GCash';
+    const transactionId = getStoredValue('payment', 'demo-transaction-id') || 'DEMO-TRANSACTION';
+    const reference = getStoredValue('payment', 'demo-reference') || 'DFA-DEMO-REFERENCE';
+    const total = getStoredValue('payment', 'total') || 1000;
+    const dateTime = new Intl.DateTimeFormat('en-PH', {
+      dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila'
+    }).format(new Date());
+    document.querySelector('#receipt-provider').textContent = provider;
+    document.querySelector('#receipt-transaction-id').textContent = transactionId;
+    document.querySelector('#receipt-reference').textContent = reference;
+    document.querySelector('#receipt-amount').textContent = formatPeso(total);
+    document.querySelector('#receipt-datetime').textContent = dateTime;
+    if (record?.code) storeValue('payment', 'appointment-code', record.code);
+    document.querySelector('#merchant-checkout-content').hidden = true;
+    document.querySelector('#merchant-receipt').hidden = false;
+    document.querySelector('#merchant-receipt').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
+  function completeMerchantPreview() {
     const isGroup = getStoredValue('payment', 'mode') === 'group';
-    const confirmationUrl = isGroup
+    window.location.href = isGroup
       ? '../group/group-confirmation.html'
       : '../individual/confirmation.html';
-    if (record) storeValue('payment', 'appointment-code', record.code);
-    window.location.href = confirmationUrl;
   }
 
   function initializeConfirmation() {
@@ -854,7 +975,7 @@
     const personalPage = isGroup ? 'group-personal.html' : 'applicant-family.html';
     const familyPage = isGroup ? 'group-personal.html' : 'applicant-family.html';
     const applicationPage = isGroup ? 'group-application.html' : 'application-contact.html';
-    const contactPage = isGroup ? 'group-contact.html' : 'application-contact.html';
+    const contactPage = isGroup ? 'group-application.html' : 'application-contact.html';
     const field = makeField;
 
     const scheduleValues = {
@@ -915,9 +1036,9 @@
       if (applicants) {
         const leadGiven = getStoredValue(personalPage, 'given-name');
         const leadLast = getStoredValue(personalPage, 'last-name');
-        const memberGiven = getStoredValue('group-contact-person.html', 'group-member-2-given')
+        const memberGiven = getStoredValue('group-application.html', 'group-member-2-given')
           || getStoredValue(personalPage, 'applicant-2-given');
-        const memberLast = getStoredValue('group-contact-person.html', 'group-member-2-last')
+        const memberLast = getStoredValue('group-application.html', 'group-member-2-last')
           || getStoredValue(personalPage, 'applicant-2-last');
         const lead = [leadGiven, leadLast].filter(Boolean).join(' ');
         const member = [memberGiven, memberLast].filter(Boolean).join(' ');
@@ -925,7 +1046,7 @@
         if (member) applicants.querySelector('.applicant-review-row p')?.replaceChildren(member);
       }
 
-      const groupContact = 'group-contact-person.html';
+      const groupContact = 'group-application.html';
       const contactDetails = [...document.querySelectorAll('section.chunk')].find((item) =>
         item.querySelector(':scope > h3')?.textContent.trim() === 'Contact information'
       );
@@ -1312,16 +1433,16 @@
     let count = Number.parseInt(getStoredValue('group-booking', 'applicant-count'), 10);
     if (!Number.isFinite(count)) count = 2;
     count = Math.max(2, Math.min(groupApplicantLimit, count));
-    const personalTemplate = document.querySelector('.additional > section.chunk');
     const namesTemplate = document.querySelector('#other-applicants > section.chunk');
     const manager = document.querySelector('.manager');
 
     function renderApplicants() {
-      const personalRoot = document.querySelector('.additional');
-      if (personalRoot && personalTemplate?.parentElement === personalRoot) {
-        personalRoot.querySelectorAll('[data-generated-applicant="true"]').forEach((item) => item.remove());
+      document.querySelectorAll('.additional').forEach((personalRoot) => {
+        const personalTemplate = personalRoot.querySelector(':scope > section.chunk');
+        if (!personalTemplate) return;
+        personalRoot.querySelectorAll(':scope > [data-generated-applicant="true"]').forEach((item) => item.remove());
         for (let index = 3; index <= count; index++) personalRoot.append(createApplicantSection(personalTemplate, index));
-      }
+      });
       if (namesTemplate?.parentElement?.id === 'other-applicants') {
         const root = namesTemplate.parentElement;
         root.querySelectorAll('[data-generated-applicant="true"]').forEach((item) => item.remove());
@@ -1388,15 +1509,15 @@
       const memberRow = applicantsSection?.querySelector('.applicant-review-row');
       if (applicantsSection && memberRow) {
         applicantsSection.querySelectorAll('[data-generated-applicant="true"]').forEach((item) => item.remove());
-        const secondGiven = getStoredValue('group-contact-person.html', 'group-member-2-given');
-        const secondLast = getStoredValue('group-contact-person.html', 'group-member-2-last');
+        const secondGiven = getStoredValue('group-application.html', 'group-member-2-given');
+        const secondLast = getStoredValue('group-application.html', 'group-member-2-last');
         memberRow.querySelector('p').textContent = [secondGiven, secondLast].filter(Boolean).join(' ') || 'Name entered in Group Contact Information';
         for (let index = 3; index <= count; index++) {
           const row = memberRow.cloneNode(true);
           row.dataset.generatedApplicant = 'true';
           row.querySelector('strong').textContent = `Applicant ${index}`;
-          const given = getStoredValue('group-contact-person.html', `group-member-${index}-given`);
-          const last = getStoredValue('group-contact-person.html', `group-member-${index}-last`);
+          const given = getStoredValue('group-application.html', `group-member-${index}-given`);
+          const last = getStoredValue('group-application.html', `group-member-${index}-last`);
           row.querySelector('p').textContent = [given, last].filter(Boolean).join(' ') || 'Name entered in Group Contact Information';
           applicantsSection.insertBefore(row, applicantsSection.querySelector('.edit'));
         }
@@ -1535,6 +1656,11 @@
       }
       const action = event.target.closest('a.btn.primary, button.btn.primary');
       if (!action) return;
+      if (action.id === 'merchant-complete') {
+        event.preventDefault();
+        completeMerchantPreview();
+        return;
+      }
       if (action.id === 'merchant-confirm') {
         event.preventDefault();
         document.querySelector('#payment-reminder')?.showModal();

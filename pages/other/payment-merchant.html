@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Merchant checkout | DFA Passport Appointment System</title>
+  <title>Demo payment merchant | DFA Passport Appointment System</title>
   <link rel="stylesheet" href="../../css/styles.css">
   <script defer src="../scripts/common.js"></script>
 </head>
@@ -13,37 +13,93 @@
       <p>DEPARTMENT OF FOREIGN AFFAIRS</p>
       <h2>Passport Appointment System</h2>
     </div>
-    <span>DEMO MERCHANT CHECKOUT</span>
+    <span>SIMULATED MERCHANT CHECKOUT</span>
   </header>
   <main class="page" id="main">
     <div class="intro">
-      <p class="eyebrow">PAYMENT / MERCHANT CHECKOUT</p>
-      <h1 id="merchant-title">Payment checkout</h1>
-      <p id="merchant-description">Review the payment details before continuing.</p>
+      <p class="eyebrow">PAYMENT / DEMONSTRATION ONLY</p>
+      <h1 id="merchant-title">Choose a payment method</h1>
+      <p id="merchant-description">Preview a simulated payment interface. No real payment or account authorization will occur.</p>
     </div>
-    <div class="checkout-grid">
-      <section class="checkout-panel">
-        <h2>Payment details</h2>
+    <div class="demo-notice" role="note"><strong>SIMULATION ONLY</strong><span>This screen is a front-end demonstration. Never enter a PIN, password, card number, or one-time password.</span></div>
+
+    <div class="checkout-grid merchant-grid" id="merchant-checkout-content">
+      <section class="checkout-panel merchant-channel-panel" aria-labelledby="merchant-channel-heading">
+        <h2 id="merchant-channel-heading"><span class="checkout-number">1</span>Choose a payment channel</h2>
+        <nav class="channel-tabs merchant-channel-tabs" aria-label="Payment channels">
+          <button class="btn secondary" type="button" data-merchant-channel="E-wallet">E-wallets</button>
+          <button class="btn secondary" type="button" data-merchant-channel="Online banking">Bank transfer</button>
+          <button class="btn secondary" type="button" data-merchant-channel="QR payment">QR / digital</button>
+        </nav>
+        <div class="merchant-provider-nav" id="merchant-provider-nav" aria-label="Choose a provider"></div>
+
+        <section class="merchant-provider-surface" id="merchant-provider-surface" aria-live="polite">
+          <div class="merchant-brand-row">
+            <div class="merchant-brand-mark" id="merchant-brand-mark" aria-hidden="true">G</div>
+            <div><p class="caption">SIMULATED PROVIDER SCREEN</p><h3 id="merchant-brand-name">GCash</h3></div>
+            <span class="demo-pill">DEMO</span>
+          </div>
+          <p id="merchant-provider-description">Review the sample payment details below.</p>
+          <div class="merchant-provider-instructions" id="merchant-provider-instructions"></div>
+          <div class="merchant-qr-preview" id="merchant-qr-preview" hidden>
+            <div class="demo-qr-art" aria-hidden="true"></div>
+            <span>ILLUSTRATIVE QR<br>NOT PAYABLE</span>
+          </div>
+          <dl class="merchant-transaction-grid">
+            <div><dt>Transaction ID</dt><dd id="merchant-transaction-id"></dd></div>
+            <div><dt>Reference number</dt><dd id="merchant-reference"></dd></div>
+            <div><dt>Payment amount</dt><dd id="merchant-amount"></dd></div>
+            <div><dt>Date and time</dt><dd id="merchant-datetime"></dd></div>
+            <div><dt>Payment status</dt><dd><span class="merchant-status" id="merchant-status">DEMO ONLY · NOT PAID</span></dd></div>
+            <div><dt>Merchant</dt><dd>Department of Foreign Affairs<br><small>Passport Appointment System · DFA-PASSPORT-DEMO</small></dd></div>
+          </dl>
+        </section>
+        <div class="actions merchant-actions">
+          <a class="btn secondary" id="merchant-back" href="../individual/payment-wallet.html">Back to payment options</a>
+          <button class="btn primary" id="merchant-confirm" type="button">Simulate successful payment</button>
+        </div>
+        <p class="footnote">Provider screens and transaction information are fictional examples for demonstration only.</p>
+      </section>
+
+      <aside class="checkout-panel pay-summary merchant-summary" aria-label="Appointment payment summary">
+        <h2><span class="checkout-number">2</span>Appointment summary</h2>
         <div class="amount-row"><span>Payment method</span><strong id="merchant-provider"></strong></div>
         <div class="amount-row"><span>Appointment</span><strong id="merchant-appointment"></strong></div>
+        <div class="amount-row"><span>Date and time</span><strong id="merchant-schedule"></strong></div>
         <div class="amount-row"><span>Applicants</span><strong id="merchant-applicants"></strong></div>
         <div class="amount-row"><span>Processing</span><strong id="merchant-processing"></strong></div>
         <div class="amount-row total"><span>Amount due</span><strong id="merchant-total"></strong></div>
-        <p class="payment-warning"><strong>DEMO CHECKOUT</strong>No real payment is processed. Do not enter account, card, or authentication details.</p>
-        <div class="actions">
-          <a class="btn secondary" id="merchant-back" href="../individual/payment-wallet.html">Back to payment options</a>
-          <button class="btn primary" id="merchant-confirm" type="button">Confirm demo payment</button>
-        </div>
-      </section>
+        <div class="payment-warning"><strong>DEMO CHECKOUT</strong>No real payment is processed. Your appointment is only recorded in this local demonstration.</div>
+      </aside>
     </div>
+
+    <section class="checkout-panel merchant-receipt" id="merchant-receipt" aria-labelledby="merchant-receipt-title" hidden>
+      <div class="receipt-heading">
+        <div class="receipt-check" aria-hidden="true">✓</div>
+        <div><p class="eyebrow">SIMULATED TRANSACTION</p><h2 id="merchant-receipt-title">Demo receipt</h2><p>This is not a genuine payment confirmation.</p></div>
+        <span class="demo-pill">NOT A REAL PAYMENT</span>
+      </div>
+      <dl class="merchant-transaction-grid receipt-details">
+        <div><dt>Payment provider</dt><dd id="receipt-provider"></dd></div>
+        <div><dt>Transaction ID</dt><dd id="receipt-transaction-id"></dd></div>
+        <div><dt>Reference number</dt><dd id="receipt-reference"></dd></div>
+        <div><dt>Payment amount</dt><dd id="receipt-amount"></dd></div>
+        <div><dt>Date and time</dt><dd id="receipt-datetime"></dd></div>
+        <div><dt>Payment status</dt><dd><span class="merchant-status paid">SIMULATED · SUCCESS</span></dd></div>
+        <div><dt>Merchant</dt><dd>Department of Foreign Affairs<br><small>Passport Appointment System · DFA-PASSPORT-DEMO</small></dd></div>
+      </dl>
+      <p class="receipt-disclaimer">This simulated receipt is for interface demonstration only. It is not proof of payment and has no value with GCash, Maya, QR Ph, or any bank.</p>
+      <div class="actions"><button class="btn primary" id="merchant-complete" type="button">Continue to appointment confirmation</button></div>
+    </section>
   </main>
+
   <dialog class="payment-reminder-dialog" id="payment-reminder" aria-labelledby="payment-reminder-title" aria-describedby="payment-reminder-copy">
-    <p class="eyebrow">PAYMENT REMINDER</p>
-    <h2 id="payment-reminder-title">Before you continue</h2>
-    <p id="payment-reminder-copy">After the transaction is completed, funds are non-refundable and non-reusable if you choose to cancel your appointment.</p>
+    <p class="eyebrow">SIMULATED PAYMENT</p>
+    <h2 id="payment-reminder-title">Continue with the demo?</h2>
+    <p id="payment-reminder-copy">This action creates a simulated payment record for this prototype only. No funds will be transferred.</p>
     <div class="actions">
       <button class="btn secondary" id="payment-reminder-back" type="button">Back to checkout</button>
-      <button class="btn primary" id="payment-reminder-accept" type="button">I understand, continue</button>
+      <button class="btn primary" id="payment-reminder-accept" type="button">Show demo receipt</button>
     </div>
   </dialog>
 </body>
